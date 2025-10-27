@@ -1,0 +1,23 @@
+﻿# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Docker
+*.effective-compose.yml
+.env
+docker-data/
+
+# Other junk
+replacements.txt
+*.bak
+*.OLD
+*.log
