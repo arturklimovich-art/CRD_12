@@ -1,0 +1,3 @@
+[submodule "src/core/CRD12"]
+	path = src/core/CRD12
+	url = https://github.com/arturklimovich-art/CRD12.git
