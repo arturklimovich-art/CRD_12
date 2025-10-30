@@ -1,0 +1,5 @@
+# src/app/deepseek_proxy/requirements.txt
+fastapi
+uvicorn[standard]
+httpx
+pydantic
