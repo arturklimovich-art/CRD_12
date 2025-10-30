@@ -1,0 +1,3 @@
+﻿{
+  "task": "Верни строго один код-блок:\n```python\ndef marker_selfbuild():\n    return \"STAGE1_AUDIT_OK\"\n```"
+}

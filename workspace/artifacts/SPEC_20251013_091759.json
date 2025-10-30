@@ -1,0 +1,21 @@
+﻿{
+  "title": "Самолечение и снапшоты (День 6)",
+  "risk": "high",
+  "scope": [
+    "config/init.sql",
+    "src/agents/self_healing.py",
+    "src/app/engineer_b_api/*",
+    "workspace/snapshots/*",
+    "workspace/ADR/*",
+    "workspace/context/FILES.csv",
+    "PASSPORT.md"
+  ],
+  "acceptance": [
+    "БД содержит таблицы snapshots и recovery_logs",
+    "SelfHealingSystem: create_snapshot/restore_from_snapshot работают",
+    "POST /system/snapshot и /system/restore/{id} → status=ok",
+    "workspace/snapshots пополняется tar.gz архивами",
+    "PASSPORT.md и артефакты обновлены",
+    "ADR_YYYYMMDD_Day6.md создан"
+  ]
+}

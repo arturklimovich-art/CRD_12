@@ -1,0 +1,270 @@
+﻿# -*- coding: utf-8 -*-
+from fastapi import FastAPI, HTTPException
+from datetime import datetime
+import logging
+from typing import Any, Dict, Optional
+import os
+import json
+import asyncio  # оставлено для совместимости, может использоваться в будущем
+import httpx    # оставлено для совместимости, может использоваться в будущем
+import re       # парсинг ответов
+
+# Импорты из локальных модулей
+# Важно: LLMRouter может иметь разные сигнатуры __init__, поэтому инициализацию делаем в startup с try/except.
+from llm_router import LLMRouter
+from intelligent_agent import IntelligentAgent, DeepSeekExecutor
+
+# =============================================================================
+# ГЛОБАЛЬНЫЕ НАСТРОЙКИ
+# =============================================================================
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+# КОНФИГУРАЦИЯ
+# Примечание: DeepSeekExecutor внутри сам защищён от двойного суффикса /llm/complete.
+DEEPSEEK_URL = os.getenv("DEEPSEEK_PROXY_URL", "http://deepseek_proxy:8010/llm/complete").rstrip("/")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+
+app = FastAPI(title="Engineer B API", version="3.9 - Production Ready")
+
+agent: Optional[IntelligentAgent] = None
+llm_router: Optional[LLMRouter] = None
+deepseek_executor: Optional[DeepSeekExecutor] = None
+
+# =============================================================================
+# ВСПОМОГАТЕЛЬНЫЕ ПАРСЕРЫ
+# =============================================================================
+_CODE_FENCE = re.compile(r"```(?:python|py)?\s*(?P<code>[\s\S]*?)\s*```", re.IGNORECASE | re.DOTALL)
+_JSON_FENCE = re.compile(r"```json\s*(?P<json>[\s\S]*?)\s*```", re.IGNORECASE | re.DOTALL)
+_AUTO_REPORT = re.compile(r"===\s*АВТОНОМНЫЙ ОТЧЁТ\s*===.*?```json\s*(\{[\s\S]*?\})\s*```", re.IGNORECASE | re.DOTALL)
+
+
+def _extract_code(text: str) -> str:
+    m = _CODE_FENCE.search(text or "")
+    if not m:
+        return ""
+    s = (m.group("code") or "").strip()
+    # если LLM ошибся и положил JSON в python-блок — отбрасываем
+    if s.startswith("{") and s.endswith("}"):
+        return ""
+    return s
+
+
+def _extract_report_json(text: str) -> Dict[str, Any]:
+    # 1) сначала ищем оформленный блок с маркером
+    m = _AUTO_REPORT.search(text or "")
+    raw = None
+    if m:
+        raw = m.group(1).strip()
+    else:
+        # 2) затем любой ```json ... ```
+        j = _JSON_FENCE.search(text or "")
+        raw = j.group("json").strip() if j else None
+
+    if not raw:
+        return {
+            "deployment_ready": False,
+            "description": "Could not find final report block in LLM response.",
+            "tests_status": "error",
+        }
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        logger.warning("❌ Failed to parse report JSON: %s", e)
+        return {
+            "deployment_ready": False,
+            "description": "Could not parse report JSON from LLM response.",
+            "tests_status": "error",
+        }
+
+
+# =============================================================================
+# ФУНКЦИИ ЖИЗНЕННОГО ЦИКЛА (STARTUP & SHUTDOWN)
+# =============================================================================
+@app.on_event("startup")
+async def startup_event():
+    global llm_router, agent, deepseek_executor
+
+    # Инициализация состояния приложения
+    app.state.start_time = datetime.now()
+    app.state.analysis_history = []
+    app.state.ready = False  # readiness флаг по умолчанию
+
+    # 1) LLMRouter (Gemini) — «мягкая» инициализация без падения при несовместимой сигнатуре
+    try:
+        llm_router = None
+        try:
+            # Современная сигнатура некоторых реализаций
+            llm_router = LLMRouter(gemini_api_key=GEMINI_API_KEY, gemini_model_name=GEMINI_MODEL)  # type: ignore[call-arg]
+            logger.info("✅ LLMRouter (Gemini) initialized with gemini_api_key/model.")
+        except TypeError as te:
+            logger.warning("⚠️ LLMRouter(gemini_api_key=...) unsupported: %s. Try default ctor.", te)
+            try:
+                # Старые версии — без параметров
+                llm_router = LLMRouter()  # type: ignore[call-arg]
+                logger.info("✅ LLMRouter (Gemini) initialized with default ctor.")
+            except Exception as e2:
+                logger.warning("⚠️ LLMRouter default ctor failed: %s. Running without Gemini.", e2)
+                llm_router = None
+    except Exception as e:
+        logger.warning("⚠️ LLMRouter initialization failed: %s. Running without Gemini.", e)
+        llm_router = None
+
+    # 2) DeepSeekExecutor
+    deepseek_executor = DeepSeekExecutor(api_url=DEEPSEEK_URL, api_key="")
+    logger.info("✅ DeepSeekExecutor initialized (url=%s)", DEEPSEEK_URL)
+
+    # 3) IntelligentAgent (совместим и с router=..., и с llm_router=...)
+    try:
+        agent = IntelligentAgent(llm_router=llm_router, deepseek_executor=deepseek_executor)
+        logger.info("✅ IntelligentAgent initialized successfully")
+        app.state.ready = True
+    except Exception as e:
+        agent = None
+        app.state.ready = False
+        logger.error("❌ IntelligentAgent initialization failed: %s", e)
+
+    logger.info("🚀 Engineer B API fully initialized")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("🛑 Shutting down Engineer B API...")
+    if deepseek_executor and getattr(deepseek_executor, "client", None):
+        try:
+            await deepseek_executor.client.aclose()
+            logger.info("✅ DeepSeekExecutor client closed.")
+        except Exception as e:
+            logger.warning("⚠️ Error on DeepSeekExecutor client close: %s", e)
+    logger.info("👋 Engineer B API shutdown complete")
+
+
+# =============================================================================
+# ОСНОВНОЙ ЭНДПОИНТ АГЕНТА
+# =============================================================================
+@app.post("/agent/analyze")
+async def analyze_task(task_data: Dict[str, Any]):
+    """
+    Принимает задачу и возвращает структурированный ответ (код + отчет) для Task Manager.
+    Совместимо с двумя форматами ответа агента:
+      1) строка (старый формат) — текст с блоками ```python и ```json
+      2) dict (новый формат) — поля: code, report (string или dict), raw
+    """
+    if not app.state.ready or agent is None:
+        raise HTTPException(status_code=503, detail="Agent not ready")
+
+    user_prompt = (task_data or {}).get("task", "").strip()
+    if not user_prompt:
+        return {
+            "status": "success",
+            "analysis": "Task prompt was empty, no action taken.",
+            "is_complete": False,
+            "generated_code": "",
+            "report": {"deployment_ready": False, "description": "Empty task", "tests_status": "skipped"},
+        }
+
+    logger.info("📝 Received task: %s", user_prompt[:160])
+
+    try:
+        analysis_result = await agent.run_cycle(user_prompt)
+
+        generated_code: str = ""
+        report_data: Dict[str, Any] = {"deployment_ready": False, "description": "No report", "tests_status": "error"}
+        analysis_text_for_debug: str = ""
+
+        # === Ветвление по типу ответа агента ===
+        if isinstance(analysis_result, dict):
+            # Новый формат: {'status', 'code', 'report', 'raw'}
+            analysis_text_for_debug = analysis_result.get("raw") or ""
+            # Код
+            code_field = analysis_result.get("code") or ""
+            if code_field:
+                m = _CODE_FENCE.search(code_field)
+                generated_code = (m.group("code") if m else code_field).strip()
+            # Отчёт
+            rep = analysis_result.get("report")
+            if isinstance(rep, dict):
+                report_data = rep
+            elif isinstance(rep, str):
+                report_data = _extract_report_json(rep)
+            else:
+                # попытка вынуть из raw
+                report_data = _extract_report_json(analysis_text_for_debug or "")
+        else:
+            # Старый формат: сплошной текст
+            analysis_text_for_debug = str(analysis_result)
+            report_data = _extract_report_json(analysis_text_for_debug)
+            # Код пробуем искать после маркера "=== СГЕНЕРИРОВАННЫЙ КОД ===", иначе первый python-блок
+            code_after_marker = re.search(
+                r"===\s*СГЕНЕРИРОВАННЫЙ КОД\s*===.*?```(?:python|py)?\s*(?P<code>[\s\S]*?)\s*```",
+                analysis_text_for_debug,
+                re.IGNORECASE | re.DOTALL,
+            )
+            if code_after_marker:
+                generated_code = code_after_marker.group("code").strip()
+            else:
+                generated_code = _extract_code(analysis_text_for_debug)
+
+        if not generated_code:
+            logger.warning("⚠️ No code extracted from agent response.")
+            report_data.setdefault("description", "No code extracted from LLM response.")
+            report_data["deployment_ready"] = False
+
+        return {
+            "status": "success",
+            "analysis": analysis_text_for_debug or (analysis_result if isinstance(analysis_result, str) else json.dumps(analysis_result, ensure_ascii=False)),
+            "is_complete": bool(report_data.get("deployment_ready", False)),
+            "generated_code": generated_code,
+            "report": report_data,
+        }
+
+    except Exception as e:
+        logger.exception("❌ Critical error during agent analysis: %s", e)
+        error_report = {
+            "deployment_ready": False,
+            "description": f"Критический сбой во время анализа: {type(e).__name__}: {str(e)}",
+            "tests_status": "error",
+            "smoke_test_result": f"Internal Error: {type(e).__name__}",
+        }
+        return {
+            "status": "error",
+            "analysis": f"=== АВТОНОМНЫЙ ОТЧЁТ ===\n```json\n{json.dumps(error_report, ensure_ascii=False, indent=2)}\n```",
+            "is_complete": False,
+            "error": str(e),
+            "generated_code": "",
+            "report": error_report,
+        }
+
+
+# =============================================================================
+# СИСТЕМНЫЕ ЭНДПОИНТЫ
+# =============================================================================
+@app.get("/")
+async def root():
+    return {
+        "message": "Engineer B API is running",
+        "version": "3.9",
+        "status": "operational",
+        "endpoints": {"health": "/system/health", "ready": "/ready", "memory": "/agent/memory", "analyze": "/agent/analyze (POST)"},
+    }
+
+
+@app.get("/system/health")
+async def health_check():
+    return {"status": "ok", "uptime": str(datetime.now() - app.state.start_time), "llm_router_active": llm_router is not None}
+
+
+@app.get("/ready")
+async def ready():
+    if app.state.ready and agent is not None:
+        return {"status": "ok"}
+    raise HTTPException(status_code=503, detail="Agent not ready")
+
+
+@app.get("/agent/memory")
+async def get_agent_memory():
+    if agent and hasattr(agent, "get_memory"):
+        return agent.get_memory()
+    raise HTTPException(status_code=503, detail="Agent is not initialized")
+

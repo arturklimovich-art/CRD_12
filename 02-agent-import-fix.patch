@@ -1,0 +1,19 @@
+--- asrcappengineer_b_apiintelligent_agent.py
++++ bsrcappengineer_b_apiintelligent_agent.py
+@@ -6,6 +6,7 @@
+ import httpx
+ from datetime import datetime
+ from typing import Any, Dict, List, Optional
++from tools import CodeInterpreter
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -87,8 +88,6 @@
+         self.history = []
+         self.task_history = []
+         
+-        # Инициализация инструментов
+-        from tools import CodeInterpreter
+         self.code_interpreter = CodeInterpreter()
+         
+         logger.info(fIntelligentAgent initialized with router={router is not None}, executor={executor is not None})

@@ -1,0 +1,27 @@
+﻿diff --git a/docker-compose.yml b/docker-compose.yml
+index 1111111..2222222 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -1,6 +1,6 @@
+ services:
+   engineer_b_api:
+     image: 
++    # ... остальные поля сервиса ...
+-    healthcheck:
+-      test: ["CMD-SHELL", "bash -lc 'wget -qO- http://localhost:8000/ready || exit 1'"]
+-      interval: 10s
+-      timeout: 3s
+-      retries: 5
+-      start_period: 5s
++    healthcheck:
++      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; r=urllib.request.urlopen('http://localhost:8000/ready',timeout=2); sys.exit(0 if r.status==200 else 1)\""]
++      interval: 10s
++      timeout: 3s
++      retries: 5
++      start_period: 5s
+ 
+   bot:
+     image: 
++    depends_on:
++      engineer_b_api:
++        condition: service_healthy

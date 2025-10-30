@@ -1,0 +1,43 @@
+﻿allowed_roots:
+  - src/bot
+  - src/app/engineer_b_api
+  - agents
+  - tests
+  - scripts
+  - config
+  - workspace/ADR
+  - workspace/patches
+  - workspace/context
+  - workspace/snapshots
+  - workspace/artifacts
+
+deny_duplicate_dirs:
+  - src
+  - tests
+
+deny_patterns:
+  - "**/__pycache__/**"
+  - "**/*.pyc"
+  - "**/*.tmp"
+
+dangerous_strings:
+  - "rm -rf"
+  - "drop database"
+  - "delete from"
+  - "password"
+  - "api_key"
+  - "token"
+
+risk_classes:
+  low: "изменения только в allowed_roots, без изменения интерфейсов, покрыты unit-тестами"
+  medium: "новые каталоги или интеграции, изменение интерфейсов, требуют contract+sandbox тестов"
+  high: "docker, сеть, секреты, БД-схема → жёсткий гейт"
+security_checks:
+  deny_patterns:
+    - "rm -rf"
+    - "drop database"
+    - "delete from"
+    - "password"
+    - "api_key"
+    - "token"
+  sandbox_timeout_sec: 15

@@ -1,0 +1,91 @@
+diff --git a/config/prompts/engineer_b_system.txt b/config/prompts/engineer_b_system.txt
+new file mode 100644
+--- /dev/null
++++ b/config/prompts/engineer_b_system.txt
+@@
++Ты — Engineer B, код-агент CRD12.
++Работай строго по правилам «зелёного коридора».
++1. Только в allowed_roots.
++2. Любые изменения атомарны: SPEC → PLAN → CODE → TEST → RESULT → SNAPSHOT.
++3. PASSPORT.md и FILES.csv обновляются всегда.
++4. Запрещены секреты, сеть, docker-compose, schema changes.
++5. Для Low-risk авто-применение, Medium → Y/N, High → запрещено.
++6. Все тесты (unit, contract, sandbox ≤15s) должны проходить.
++7. Формат: короткие шаги + RESULT с sha256.
++
++Роль: выполнять ТЗ, не объяснять.
+
+diff --git a/agents/trader/.env.example b/agents/trader/.env.example
+new file mode 100644
+--- /dev/null
++++ b/agents/trader/.env.example
+@@
++# Example environment for trader agent
++TRADER_MODE=sandbox
++TRADER_FAKE_KEY=demo123
+
+diff --git a/agents/trader/README.md b/agents/trader/README.md
+new file mode 100644
+--- /dev/null
++++ b/agents/trader/README.md
+@@
++# Trader Agent
++
++Агент **trader** отвечает за торговую логику.
++
++## Структура
++- core/ — базовые функции
++- io/ — ввод/вывод
++- risk/ — управление рисками
++- config/ — локальные настройки
++- tests/ — тесты агента
++
++## Как запустить тесты
++```bash
++pytest tests/trader -q
++```
+
+diff --git a/agents/trader/core/ping.py b/agents/trader/core/ping.py
+new file mode 100644
+--- /dev/null
++++ b/agents/trader/core/ping.py
+@@
++def ping() -> str:
++    """Простая проверка доступности трейдер-агента."""
++    return "pong"
+
+diff --git a/tests/trader/test_ping.py b/tests/trader/test_ping.py
+new file mode 100644
+--- /dev/null
++++ b/tests/trader/test_ping.py
+@@
++import pytest
++from agents.trader.core.ping import ping
++
++def test_ping_returns_pong():
++    assert ping() == "pong"
+
+diff --git a/workspace/ADR/ADR_20251012_Day3.md b/workspace/ADR/ADR_20251012_Day3.md
+new file mode 100644
+--- /dev/null
++++ b/workspace/ADR/ADR_20251012_Day3.md
+@@
++# ADR День 3 (2025-10-12)
++
++## Изменения
++- Подключён DeepSeek (через DEEPSEEK_API_KEY, конфиг в .env).
++- Добавлен системный промпт: `config/prompts/engineer_b_system.txt`.
++- Задокументированы контракты API:
++  - **POST /llm/complete**
++  - **POST /pipeline/run**
++- Создан каркас агента `agents/trader/` (core, io, risk, config, tests, README.md, .env.example).
++- Реализована сквозная задача Low-risk: функция `ping()` и тест.
++- Обновлены артефакты, PASSPORT.md и FILES.csv.
++
++## Acceptance
++- /health отвечает.
++- POST /llm/complete возвращает ok=true.
++- POST /pipeline/run выполняет /ping (созданы файлы).
++- pytest 0 failed.
++- ADR создан.
+

@@ -1,0 +1,6 @@
+﻿{
+  "title": "Добавить команду /ping агенту trader",
+  "risk": "low",
+  "scope": ["agents/trader/core/*","tests/trader/*"],
+  "acceptance": ["pytest 0 failed", "ping() -> 'pong'"]
+}

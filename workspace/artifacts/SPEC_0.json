@@ -1,0 +1,7 @@
+﻿{
+  "title": "Пример: Добавить функцию ping агенту",
+  "acceptance": ["pytest 0 failed", "GET /ping == pong"],
+  "constraints": {"lang": "py>=3.11", "services": ["engineer_b_api","engineer_a_bot"]},
+  "change_scope": ["agents/trader/core/*.py","tests/trader/*"],
+  "risk": "low"
+}

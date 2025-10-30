@@ -1,0 +1,24 @@
+﻿{
+  "title": "Внедрить тест-пирамиду и безопасность (День 4)",
+  "risk": "low",
+  "scope": [
+    "tests/unit/*",
+    "tests/contract/*",
+    "tests/sandbox/*",
+    "agents/trader/*",
+    "config/policy.yml",
+    "workspace/context/bootstrap.md",
+    "workspace/ADR/*",
+    "workspace/context/FILES.csv",
+    "PASSPORT.md"
+  ],
+  "acceptance": [
+    "pytest tests/unit -> 0 failed",
+    "pytest tests/contract -> 0 failed",
+    "pytest tests/sandbox -> 0 failed, ≤ 15s",
+    "config/policy.yml содержит security_checks и sandbox_timeout_sec=15",
+    "bootstrap.md и PASSPORT.md отражают security policy",
+    "agents/trader/.env.example существует; README.md обновлён; .env в .gitignore",
+    "ADR_YYYYMMDD_Day4.md создан с описанием"
+  ]
+}

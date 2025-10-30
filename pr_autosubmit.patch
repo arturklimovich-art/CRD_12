@@ -1,0 +1,58 @@
+diff --git a/assistant_api/app.py b/assistant_api/app.py
+--- a/assistant_api/app.py
++++ b/assistant_api/app.py
+@@ -XXX,6 +XXX,41 @@
+     # ... ваш существующий код выше ...
+ 
+     # === Smoke Test ===
+     smoke_ok, smoke_log = run_smoke_test(final_test_code)
+     if smoke_ok:
+         deployment_ready = True
+-        desc = f"{desc} | SmokeTest: OK"
++        desc = f"{desc} | SmokeTest: OK"
++
++        # === Auto PR after successful Smoke Test ===
++        # Определяем список/путь файлов для коммита в PR.
++        # Поддерживаем оба случая: files_to_commit (list/iterable) или file_path (str).
++        try:
++            files_to_commit = None
++            if 'files_to_commit' in locals() and files_to_commit:
++                _commit_payload = files_to_commit
++            elif 'file_path' in locals() and file_path:
++                _commit_payload = [file_path] if isinstance(file_path, str) else file_path
++            else:
++                _commit_payload = []
++
++            pr_title = (desc[:80]) if desc else "Auto PR"
++            pr_result = submit_pull_request(files_to_commit=_commit_payload, pr_title=pr_title)
++
++            # submit_pull_request может вернуть dict/str — нормализуем к строке.
++            try:
++                _pr_str = pr_result if isinstance(pr_result, str) else (
++                    pr_result.get("url") or pr_result.get("html_url") or pr_result.get("status") or str(pr_result)
++                )
++            except Exception:
++                _pr_str = str(pr_result)
++
++            desc = f"{desc} | PR Status: {_pr_str}"
++        except Exception as e:
++            # Не фейлим весь цикл — фиксируем статус и продолжаем.
++            desc = f'{desc} | PR Status: ERROR: {type(e).__name__}: {e}'
++            # Опционально: залогировать стек
++            try:
++                logger.exception("submit_pull_request failed")
++            except Exception:
++                pass
+     else:
+         deployment_ready = False
+         desc = f"{desc} | SmokeTest: FAIL"
+ 
+     # === Final deployment report ===
+-    submit_deployment_report(deployment_ready=deployment_ready, description=desc, ...)
++    submit_deployment_report(deployment_ready=deployment_ready, description=desc, ...)
+ 
+     return {
+         "deployment_ready": deployment_ready,
+         "description": desc,
+         # ... остальной payload ...
+     }

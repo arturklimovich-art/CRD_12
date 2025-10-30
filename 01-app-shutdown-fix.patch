@@ -1,0 +1,16 @@
+--- a/src/app/engineer_b_api/app.py
++++ b/src/app/engineer_b_api/app.py
+@@ -107,6 +107,13 @@
+ 
+     logger.info("🚀 Engineer B API fully initialized")
+ 
++@app.on_event("shutdown")
++async def shutdown_event():
++    global agent
++    if agent and agent.executor:
++        await agent.executor.close()
++        logger.info("❌ DeepSeekExecutor client closed.")
++
+ # =============================================================================
+ # КОНЕЧНЫЕ ТОЧКИ API (ENDPOINTS)
+ # =============================================================================

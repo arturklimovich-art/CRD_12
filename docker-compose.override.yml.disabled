@@ -1,0 +1,101 @@
+﻿version: "3.9"
+
+services:
+  pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: crd12_pgvector
+    environment:
+      POSTGRES_DB: crd12
+      POSTGRES_USER: crd12
+      POSTGRES_PASSWORD: crd12
+      TZ: ${TZ}
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; \
+r=urllib.request.urlopen('http://localhost:8000/ready',timeout=2); \
+sys.exit(0 if r.status==200 else 1)\""]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  engineer_b_api:
+    build:
+      context: ./src/app/engineer_b_api
+    container_name: crd12_engineer_b_api
+    environment:
+      TZ: ${TZ}
+      # URL прокси для DeepSeek (совпадает с работающим контейнером)
+      DEEPSEEK_API_URL: http://deepseek_proxy:8010/llm/complete
+    ports:
+      - "8000:8000"
+    depends_on:
+      - deepseek_proxy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/ready || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    command: >
+      sh -lc "python -m pip install --no-cache-dir -r requirements.txt &&
+              uvicorn app:app --host 0.0.0.0 --port 8000"
+    restart: unless-stopped
+
+  deepseek_proxy:
+
+    container_name: crd12_deepseek_proxy
+    working_dir: /app
+    # Важно: только чтение, чтобы код с хоста подмонтировался
+    volumes:
+      - ./:/app:ro
+    command: >
+      sh -lc "python -m pip install --no-cache-dir fastapi uvicorn pydantic httpx &&
+              uvicorn src.app.engineer_b_api.deepseek_proxy:app --host 0.0.0.0 --port 8010"
+    ports:
+      - "8010:8010"
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DEEPSEEK_API_BASE: ${DEEPSEEK_API_BASE}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL}
+      TZ: ${TZ}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python - <<'PY'\nimport urllib.request,sys\ntry:\n  urllib.request.urlopen('http://localhost:8010/health',timeout=2)\n  sys.exit(0)\nexcept Exception:\n  sys.exit(1)\nPY"
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  bot:
+    build:
+      context: ./src/bot
+    container_name: crd12_bot
+    environment:
+      TZ: ${TZ}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      # Внутрисетевой URL до Engineer B
+      ENGINEER_B_URL: http://engineer_b_api:8000
+    depends_on:
+      engineer_b_api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python - <<'PY'\nimport urllib.request,sys\ntry:\n  r=urllib.request.urlopen('http://localhost:8000/ready',timeout=2)\n  sys.exit(0 if r.status==200 else 1)\nexcept Exception:\n  sys.exit(1)\nPY"
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+
+

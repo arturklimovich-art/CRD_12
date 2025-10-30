@@ -1,0 +1,6 @@
+﻿ schema | table  
+--------+--------
+ core   | events
+ core   | jobs
+(2 rows)
+

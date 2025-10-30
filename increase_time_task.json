@@ -1,0 +1,3 @@
+﻿{
+    "task":  "CRITICAL SYSTEM FIX: Modify the task_manager.py file to increase waiting time from 10 seconds to 300 seconds. Find the asyncio.sleep(10) call and change it to asyncio.sleep(300). The file is located at src/app/bot/task_manager.py. This is a test of the self-patching capability."
+}

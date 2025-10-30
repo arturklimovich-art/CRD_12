@@ -1,0 +1,10 @@
+﻿pgvector: 5433
+engineer_b_api: 8000
+reserved:
+  - 3000    # UI (future)
+  - 8080    # dev-http
+  - 9000    # debug
+
+deepseek_proxy:
+  port: 8010
+  purpose: DeepSeek proxy (uvicorn)

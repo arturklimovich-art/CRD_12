@@ -1,0 +1,22 @@
+﻿{
+  "title": "Интеграция DeepSeek API (День 5)",
+  "risk": "high",
+  "scope": [
+    "docker-compose.yml",
+    "config/ports.yml",
+    "src/agents/deepseek_proxy.py",
+    "src/app/engineer_b_api/*",
+    "src/bot/*",
+    "workspace/ADR/*",
+    "workspace/context/FILES.csv",
+    "PASSPORT.md",
+    ".env"
+  ],
+  "acceptance": [
+    "deepseek_proxy контейнер: /health -> ok",
+    "POST /proxy/deepseek и /llm/complete возвращают валидный JSON",
+    "Запросы/ответы логируются в БД (messages)",
+    "Команда /deepseek в Telegram возвращает ответ от DeepSeek",
+    "SPEC/PLAN/CHECKLIST/RESULT обновлены; ADR_YYYYMMDD_Day5.md создан"
+  ]
+}

@@ -1,0 +1,38 @@
+﻿# Честный аудит Этапа 1 — Предварительная сводка (prelim)
+Дата/время: 2025-10-28 21:19:29
+Артефакты: C:\Users\Artur\Documents\CRD12\workspace\audit_stage1_20251028-203848
+
+## 1) Инициализация окружения
+- docker ps: cм. docker_ps.txt (ранее снято)
+- /ready: OK (см. api_engb_ready.json)
+- /system/health: см. api_system_health.json
+**Вывод:** сервисы и supervisor/worker подняты, API слушает порт 8001 → 8000.
+
+## 2) Engineer_B /agent/analyze
+- Эндпоинт отсутствует (по openapi.json и дампу маршрутов).
+**Вывод:** FAIL для пункта Analyze.
+
+## 3) Runtime patching
+- /agent/apply_patch не обнаружен; механизм перезапуска supervisor подтверждён.
+**Вывод:** PARTIAL (нет юридического следа патчинга через API).
+
+## 4) Event Sourcing (БД)
+- Таблицы: core.events ✅, core.jobs ✅, core.snapshots ❌
+- События текущего прогона ANALYZE_OK/PATCH_APPLIED/RECOVERY_OK: 0
+**Вывод:** PARTIAL (схема не полная, нет событий аудита).
+
+## 5) E2E Bot → Engineer_B → DB
+- Нет маршрутов /agent/* → полноценный E2E недоступен.
+**Вывод:** FAIL.
+
+## 6) Runtime Smoke + Self-Recovery
+- Доказательств расписания smoke/RECOVERY_OK нет.
+**Вывод:** FAIL (на данный момент).
+
+## Итоговая матрица DoD (prelim)
+- Services healthy: ✅
+- Analyze JSON: ❌
+- Runtime patch + restart: ⚠️
+- Events in PostgreSQL: ⚠️
+- Smoke + Recovery (RECOVERY_OK): ❌
+- One E2E (with DB trace): ❌

@@ -1,0 +1,3 @@
+﻿{
+    "task":  "MODIFY FILE: /app/tasks/task_manager.py in the bot container. Change asyncio.sleep(10) to asyncio.sleep(300) in all occurrences. This file controls the self-building loop timing."
+}
