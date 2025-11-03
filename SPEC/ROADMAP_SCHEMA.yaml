@@ -1,0 +1,42 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+type: object
+required: [version, phase, policy, blocks]
+properties:
+  version: {type: string}
+  phase: {type: string}
+  policy:
+    type: object
+    properties:
+      green_paths: {type: array, items: {type: string}}
+      spec_binding: {type: boolean}
+      ci_spec_guard: {type: string}
+  blocks:
+    type: array
+    items:
+      type: object
+      required: [id, title, status]
+      properties:
+        id: {type: string}
+        alias: {type: string}
+        title: {type: string}
+        status: {type: string, enum: ["PLANNED","IN_PROGRESS","DONE"]}
+        deps: {type: array, items: {type: string}}
+        artifacts: {type: array, items: {type: object, properties: {path: {type: string}}}}
+        tasks:
+          type: array
+          items:
+            type: object
+            required: [id, title]
+            properties:
+              id: {type: string}
+              title: {type: string}
+              steps: {type: array, items: {type: string}}
+              spec_ref:
+                type: object
+                properties:
+                  spec_id: {type: string}
+                  path: {type: string}
+                  version: {type: string}
+                  checksum: {type: string}
+        dod: {type: array, items: {type: string}}
+        metrics: {type: array, items: {type: string}}

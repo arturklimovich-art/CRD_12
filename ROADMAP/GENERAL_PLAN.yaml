@@ -1,0 +1,355 @@
+version: "0.2"
+phase: "E1→TL1→E2→TL2→E3→TL3"
+policy:
+  green_paths: ["/app/agents/", "/app/src/engineer_b_api/", "/app/src/bot/", "/app/workspace/patches/", "/app/workspace/ADR/", "/app/workspace/snapshots/"]
+  spec_binding: true
+  ci_spec_guard: ".github/workflows/spec_guard.yml"
+
+blocks:
+  # ---------- E1 (Foundation) ----------
+  - id: "E1-B6"
+    alias: "E1-06"
+    title: "Bot v2: Intelligent Planner"
+    status: "DONE"
+    artifacts:
+      - path: "agents/EngineersIT.Bot/"
+      - path: "TRANSFER_PACKAGE.md"
+      - path: "Migrate-BotV2.ps1"
+      - path: "SPEC/BOT_V2.md"
+    dod:
+      - "E2E TZ→Plan→Queue→Watch→Refine→Attach-CandidatePatch; metrics recorded"
+    metrics: ["plan_accuracy_trend","rework_rate","lead_time_tz_to_commit"]
+
+  - id: "E1-B7"
+    alias: "E1-07"
+    title: "Bot v3: Roadmap/Readmap Manager"
+    status: "DONE"
+    deps: ["E1-B6"]
+    artifacts:
+      - path: "config/readmap/"
+      - path: "workspace/readmap/revisions/"
+      - path: "SPEC/READMAP_MANAGER.md"
+    dod:
+      - "Valid ROADMAP.yaml|md; DRIFT‑detector ON; auto‑generate Specs; Navigator sync by commitSHA"
+
+  - id: "E1-B8"
+    alias: "E1-08"
+    title: "Roadmap Loading & Initialization"
+    status: "PLANNED"
+    deps: ["E1-B6","E1-B7"]
+    artifacts:
+      - path: "ROADMAP/ROADMAP.yaml"
+      - path: "ROADMAP/ROADMAP.md"
+      - path: "SPEC/ROADMAP_SCHEMA.yaml"
+      - path: "SPEC/READMAP_BOOTSTRAP.md"
+      - path: "workspace/readmap/revisions/"
+    tasks:
+      - id: "E1-B8-T1"
+        title: "Prepare directories"
+        steps:
+          - "Create ROADMAP/, JOURNAL/, workspace/readmap/revisions/"
+          - "Init .gitkeep & permissions"
+        spec_ref: {spec_id: "SPEC-READMAP-BOOTSTRAP-001", path: "SPEC/READMAP_BOOTSTRAP.md", version: "v0.1", checksum: "TBD"}
+      - id: "E1-B8-T2"
+        title: "Place plan files"
+        steps:
+          - "ROADMAP/ROADMAP.yaml (machine map)"
+          - "ROADMAP/ROADMAP.md (human version)"
+          - "SPEC/ROADMAP_SCHEMA.yaml (JSON Schema)"
+        spec_ref: {spec_id: "SPEC-ROADMAP-SCHEMA-001", path: "SPEC/ROADMAP_SCHEMA.yaml", version: "v0.1", checksum: "TBD"}
+      - id: "E1-B8-T3"
+        title: "Import & validate"
+        steps:
+          - "Bot: Readmap-Load → parse/schema/checksum"
+          - "Events: readmap.loaded / readmap.parse_failed"
+          - "Revision saved (append-only)"
+        spec_ref: {spec_id: "SPEC-READMAP-BOOTSTRAP-001", path: "SPEC/READMAP_BOOTSTRAP.md", version: "v0.1", checksum: "TBD"}
+    dod:
+      - "readmap.loaded recorded; Navigator baseline created"
+      - "CI validates schema & checksums"
+
+  - id: "E1-B9"
+    title: "Contour A (PowerShell AI Agents)"
+    status: "DONE"
+    deps: ["E1-B6","E1-B7"]
+    artifacts:
+      - path: "SPEC/HANDSHAKE_POWERSHELL.md"
+      - path: "SPEC/AGENT_TASKS.md"
+      - path: "DB/EVENTS_SCHEMA.sql"
+      - path: "SPEC/RISK_GATES.md"
+      - path: "SPEC/STATUS_PANEL.md"
+    dod:
+      - "ps.patch.created→…→eng.apply_patch.committed/rolled_back; snapshot before changes; Curator‑gate by risk"
+
+  - id: "E1-B11"
+    alias: "E1-08L"
+    title: "Local LLM stack (Ollama + OpenAI‑proxy) FAST/LONG"
+    status: "PLANNED"
+    priority: "HIGH"
+    deps: ["E1-B6","E1-B7"]
+    artifacts:
+      - path: "memory/docker-compose.llm.yml"
+      - path: "config/.env"
+      - path: "scripts/llm_status.ps1"
+      - path: "scripts/llm_switch.ps1"
+      - path: "ADR/2025-10-LLM-Local.md"
+      - path: "DB/CORE_EVENTS_LLM.sql"
+    tasks:
+      - id: "L0"
+        title: "Isolation & baseline"
+        steps:
+          - "Compose (ollama+litellm) 127.0.0.1:11434/4000"
+          - "Pull qwen2.5:7b-instruct-q4_K_M; /v1/chat/completions"
+          - "Record llm.inference.metrics"
+        spec_ref: {spec_id: "SPEC-LLM-STACK-001", path: "SPEC/LLM_STACK.md", version: "v0.1", checksum: "TBD"}
+      - id: "L1"
+        title: "ENV/switch/profiles/status"
+        steps:
+          - "Introduce unified ENV; compute OPENAI_* / LLM_*"
+          - "Profiles FAST(2k,gpu)/LONG(4k,q8|CPU offload)"
+          - "Status & health; provider.switched/healthcheck"
+        spec_ref: {spec_id: "SPEC-LLM-ENV-001", path: "SPEC/LLM_ENV_CONTRACT.md", version: "v0.1", checksum: "TBD"}
+      - id: "L2"
+        title: "Offline/RAG/fallback"
+        steps:
+          - "OFFLINE_MODE=true blocks cloud (llm.request.blocked)"
+          - "RAG invariance (pgvector) local vs cloud"
+          - "(opt) Auto-fallback on failure when OFFLINE_MODE=false"
+        spec_ref: {spec_id: "SPEC-LLM-RAG-001", path: "SPEC/LLM_RAG_INVARIANCE.md", version: "v0.1", checksum: "TBD"}
+      - id: "L3"
+        title: "Local SFT (LoRA/QLoRA)"
+        steps:
+          - "Dataset & cleaning; Axolotl/LLaMA‑Factory; QLoRA for 6GB"
+          - "A/B 20–30 prompts; enable if ≥70% preference"
+        spec_ref: {spec_id: "SPEC-LLM-SFT-001", path: "SPEC/LLM_SFT_LORA.md", version: "v0.1", checksum: "TBD"}
+    dod:
+      - "Local OpenAI‑compatible endpoint offline; profiles via ENV; events in core.events; RAG invariance confirmed"
+
+  - id: "E1-B12"
+    alias: "E1-09"
+    title: "Telegram channel & two‑mode Bot interface"
+    status: "PLANNED"
+    deps: ["E1-B6","E1-B7","E1-B8"]
+    artifacts:
+      - path: "src/bot/telegram_interface.py"
+      - path: "agents/EngineersIT.Bot/telegram/"
+      - path: "docs/Bot_Telegram_Interface.md"
+      - path: "config/.env"
+      - path: "DB/CORE_EVENTS_BOT.sql"
+      - path: "memory/intelligence_log/"
+    tasks:
+      - id: "TG1"
+        title: "Restore connection"
+        steps:
+          - "Verify TELEGRAM_TOKEN in config/.env"
+          - "Enable polling by default; /start response"
+          - "Event bot.telegram.connected"
+        spec_ref: {spec_id: "SPEC-BOT-TELEGRAM-001", path: "docs/Bot_Telegram_Interface.md", version: "v0.1", checksum: "TBD"}
+      - id: "TG2"
+        title: "Start menu /start"
+        steps:
+          - "Keyboard: Command ⚙️ | Intelligence 🧠"
+          - "Persist choice in memory/session/"
+      - id: "TG3"
+        title: "Command mode"
+        steps:
+          - "/tasks (Navigator), /status (ROADMAP.yaml), /addtask (Readmap‑Edit); log bot.command.executed"
+      - id: "TG4"
+        title: "Intelligence mode"
+        steps:
+          - "Natural dialog; /result summary; Save ✅ / Edit ✏️ to memory/intelligence_log/; log bot.intelligence.result.saved"
+      - id: "TG5"
+        title: "Events/Security/Health"
+        steps:
+          - "Log all ops in core.events; token only in .env; /ping health"
+    dod:
+      - "/start shows 2 modes; Command & Intelligence flows work; events recorded; secrets not in Git"
+
+  # ---------- TL1 (Demo Lab) ----------
+  - id: "TL1-D1"
+    title: "Collector v0 (OHLCV 5y, 2–4 assets)"
+    status: "PLANNED"
+    deps: ["E1-B8"]
+    artifacts:
+      - path: "SPEC/TL_COLLECTOR_V0.md"
+    tasks:
+      - id: "TL1-D1-T1"
+        title: "REST collectors & validation"
+        steps:
+          - "Source adapters; gap/dup validation; resample D/H4; write to market_data.*"
+        spec_ref: {spec_id: "SPEC-TL-COL-V0-001", path: "SPEC/TL_COLLECTOR_V0.md", version: "v0.1", checksum: "TBD"}
+    dod:
+      - "≥5y data present; zero gaps after validation; lineage recorded"
+
+  - id: "TL1-S1"
+    title: "Strategies (baseline STR‑000 + 2–3 simple)"
+    status: "PLANNED"
+    deps: ["TL1-D1","E1-B8","E1-B9"]
+    artifacts:
+      - path: "SPEC/TL_STRATEGIES_V1.md"
+    dod:
+      - "ABI compliant: signals = f(features) → {{side,size,stops}}; registered in DB"
+
+  - id: "TL1-B1"
+    title: "Backtester v1 (WF windows)"
+    status: "PLANNED"
+    deps: ["TL1-S1"]
+    artifacts:
+      - path: "SPEC/TL_BACKTESTER_V1.md"
+    dod:
+      - "WF windows executed; metrics table filled (Sharpe, DD, trades); artifacts stored"
+
+  - id: "TL1-R1"
+    title: "Risk‑Gate v1"
+    status: "PLANNED"
+    deps: ["TL1-B1"]
+    artifacts:
+      - path: "SPEC/TL_RISKGATE_V1.md"
+    dod:
+      - "Pre‑trade rules ≥2; pass/fail written to DB"
+
+  - id: "TL1-O1"
+    title: "Reports & Snapshots"
+    status: "PLANNED"
+    deps: ["TL1-R1"]
+    artifacts:
+      - path: "SPEC/TL_REPORTS_V1.md"
+    dod:
+      - "Release artifacts published; snapshot recorded; Navigator reflects statuses"
+
+  # ---------- E2 (Quality & Autonomy) ----------
+  - id: "E2-K1"
+    title: "Curator‑Gate (2nd opinion)"
+    status: "PLANNED"
+    deps: ["E1-B10"]
+
+  - id: "E2-K2"
+    title: "Knowledge Hub (pgvector)"
+    status: "PLANNED"
+    deps: ["E1-B8"]
+    artifacts:
+      - path: "SPEC/E2_KNOWLEDGE_HUB.md"
+
+  - id: "E2-K3"
+    title: "Scheduler & Queues"
+    status: "PLANNED"
+    deps: ["E1-B7"]
+    artifacts:
+      - path: "SPEC/E2_SCHEDULER.md"
+
+  - id: "E2-K4"
+    title: "Telemetry & Weekly Reports"
+    status: "PLANNED"
+    deps: ["E1-B8"]
+    artifacts:
+      - path: "SPEC/E2_TELEMETRY.md"
+
+  - id: "E2-K5"
+    title: "Security Policies (policy‑as‑data)"
+    status: "PLANNED"
+    artifacts:
+      - path: "SPEC/E2_SECURITY_POLICIES.md"
+
+  - id: "E2-K6"
+    title: "Integration Contracts v2"
+    status: "PLANNED"
+    deps: ["TL1"]
+    artifacts:
+      - path: "SPEC/E2_INTEGRATION_V2.md"
+
+  - id: "E2-K7"
+    title: "Self‑healing v1 (incidents & retries)"
+    status: "PLANNED"
+    artifacts:
+      - path: "SPEC/E2_SELF_HEALING_V1.md"
+
+  # ---------- TL2 (Rich Data & Paper) ----------
+  - id: "TL2-S2"
+    title: "M‑series strategies"
+    status: "PLANNED"
+    deps: ["TL1","E2-K2"]
+    artifacts:
+      - path: "SPEC/TL2_STRATEGIES_M_SERIES.md"
+
+  - id: "TL2-P2"
+    title: "WF+CV Batches & Heatmaps"
+    status: "PLANNED"
+    deps: ["E2-K3"]
+    artifacts:
+      - path: "SPEC/TL2_WF_CV.md"
+
+  - id: "TL2-R2"
+    title: "Risk‑Gates v2 & kill‑switch (paper)"
+    status: "PLANNED"
+    deps: ["E2-K5"]
+    artifacts:
+      - path: "SPEC/TL2_RISK_V2.md"
+
+  - id: "TL2-D2"
+    title: "Daily/Weekly Digests"
+    status: "PLANNED"
+    deps: ["E2-K4"]
+    artifacts:
+      - path: "SPEC/TL2_DIGESTS.md"
+
+  # ---------- E3 (Industrial) ----------
+  - id: "E3-B1"
+    title: "Blue/Green & Canary"
+    status: "PLANNED"
+    artifacts:
+      - path: "SPEC/E3_BLUEGREEN_CANARY.md"
+
+  - id: "E3-B2"
+    title: "HA & Degradation"
+    status: "PLANNED"
+    artifacts:
+      - path: "SPEC/E3_HA_DEGRADATION.md"
+
+  - id: "E3-B3"
+    title: "End‑to‑end Audit"
+    status: "PLANNED"
+    artifacts:
+      - path: "SPEC/E3_AUDIT.md"
+
+  - id: "E3-B4"
+    title: "Cost/Budget Guardrails"
+    status: "PLANNED"
+    artifacts:
+      - path: "SPEC/E3_COST_BUDGET.md"
+
+  - id: "E3-B5"
+    title: "Risk‑Gates v3"
+    status: "PLANNED"
+    artifacts:
+      - path: "SPEC/E3_RISK_V3.md"
+
+  - id: "E3-B6"
+    title: "Multi‑tenant & A/B Experiments"
+    status: "PLANNED"
+    artifacts:
+      - path: "SPEC/E3_MULTI_TENANT_AB.md"
+
+  # ---------- TL3 (Live) ----------
+  - id: "TL3-LIVE"
+    title: "Small live loop with kill‑switch"
+    status: "PLANNED"
+    artifacts:
+      - path: "SPEC/TL3_LIVE.md"
+
+  - id: "TL3-PORT"
+    title: "Portfolio Allocator (CVaR budgeting)"
+    status: "PLANNED"
+    artifacts:
+      - path: "SPEC/TL3_PORTFOLIO.md"
+
+  - id: "TL3-AB"
+    title: "A/B Experiments (live share)"
+    status: "PLANNED"
+    artifacts:
+      - path: "SPEC/TL3_AB_EXPERIMENTS.md"
+
+  - id: "TL3-COMP"
+    title: "Compliance & Audit Pack"
+    status: "PLANNED"
+    artifacts:
+      - path: "SPEC/TL3_COMPLIANCE.md"

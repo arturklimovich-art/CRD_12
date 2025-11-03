@@ -1,0 +1,24 @@
+version: "3.9"
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: crd12_ollama
+    restart: unless-stopped
+    ports: ["127.0.0.1:11434:11434"]
+    volumes:
+      - ollama_models:/root/.ollama
+
+  litellm:
+    image: ghcr.io/berriai/litellm:latest
+    container_name: crd12_litellm
+    restart: unless-stopped
+    depends_on: [ollama]
+    ports: ["127.0.0.1:4000:4000"]
+    environment:
+      - LITELLM_LOG=info
+      - LITELLM_PORT=4000
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OPENAI_API_KEY=ollama-local
+    command: ["--host", "0.0.0.0", "--port", "4000", "--adapter", "ollama", "--num_workers", "1"]
+volumes:
+  ollama_models: {}

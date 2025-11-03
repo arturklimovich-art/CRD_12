@@ -1,0 +1,24 @@
+﻿# Telegram Bot Configuration
+# This file contains basic configuration for Telegram bot integration
+
+# Bot Commands Description
+commands:
+  /start - Show main menu with Command and Intelligence modes
+  /tasks - List current tasks and their status
+  /status - Show system status and progress
+  /addtask - Add new task to the system
+  /ping - Health check and bot status
+
+# Intelligence Mode Features
+intelligence:
+  save_result: true
+  edit_result: true  
+  log_directory: "memory/intelligence_log/"
+  session_directory: "memory/session/"
+
+# Event Types for Telegram
+events:
+  connected: "bot.telegram.connected"
+  command_executed: "bot.command.executed"
+  intelligence_saved: "bot.intelligence.result.saved"
+  menu_displayed: "bot.menu.displayed"
