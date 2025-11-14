@@ -1,0 +1,8 @@
+﻿task_id,plan_status,proposed_status,reason
+E1-B9,DONE,DONE,"commit=abc1; tests=passed; snap=ok (Assumed)"
+E1-B6,DONE,DONE,"commit=abc2; tests=passed (Assumed)"
+E1-B7,DONE,DONE,"commit=abc3; tests=passed (Assumed)"
+E1-B8,PLANNED,IN_PROGRESS,"plan.plan_created (Assumed)"
+E1-B11,PLANNED/HIGH,IN_PROGRESS,"eng.code.started (Assumed)"
+E1-B12,PLANNED,IN_PROGRESS,"eng.code.started (Assumed)"
+E1-B10,PLANNED,PLANNED,"No evidence of work found (Assumed)"

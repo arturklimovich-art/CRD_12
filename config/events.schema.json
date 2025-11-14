@@ -1,0 +1,53 @@
+{
+  "\": "http://json-schema.org/draft-07/schema#",
+  "title": "Event Schema",
+  "description": "Schema for Bot v2 events",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_type": {
+      "enum": [
+        "TRIAGE_STARTED",
+        "TRIAGE_OK", 
+        "PLAN_CREATED",
+        "TASK_QUEUED",
+        "TASK_STARTED",
+        "PATCH_APPLIED",
+        "TESTS_PASSED",
+        "FAILED",
+        "ROLLED_BACK",
+        "REFINE_REQUESTED",
+        "REFINE_COMPLETED",
+        "PLAN_COMPLETED"
+      ]
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string"
+    },
+    "subject_id": {
+      "type": "string"
+    },
+    "details": {
+      "type": "object"
+    },
+    "event_schema_version": {
+      "type": "string",
+      "const": "evt.v1"
+    }
+  },
+  "required": [
+    "event_id",
+    "event_type", 
+    "occurred_at",
+    "correlation_id",
+    "subject_id",
+    "event_schema_version"
+  ]
+}

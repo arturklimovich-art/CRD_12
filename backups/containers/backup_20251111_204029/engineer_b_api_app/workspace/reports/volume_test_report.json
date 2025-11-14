@@ -1,0 +1,12 @@
+﻿{
+  "test_report": "volume_persistence_test",
+  "timestamp": "2025-11-10 10:22:17",
+  "status": "success",
+  "volumes_tested": [
+    "patches",
+    "reports", 
+    "snapshots",
+    "adr",
+    "logs"
+  ]
+}

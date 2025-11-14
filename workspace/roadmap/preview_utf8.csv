@@ -1,0 +1,3 @@
+item_id,title,summary,tech_hints,deliverable,priority,status,owner,order_index
+0135b73c-ceb0-4c57-8ee5-883730137e54,B1-T1 Схемы таблиц и индексы,Создать проекции nav.roadmap_items/nav.roadmap_revisions и индексы,"[""PostgreSQL"", ""JSONB"", ""GIN"", ""Матвью""]",SQL-миграция и применённые таблицы/индексы,1,planned,bot,10
+91459d69-9591-4fca-9091-0a750bad1f61,B1-T2 События и апдейтеры,Проектор событий core.events → обновление nav.*,"[""PL/pgSQL"", ""Event Sourcing"", ""projection offsets""]",Функции nav.project_* и обновляемые проекции,1,planned,bot,20

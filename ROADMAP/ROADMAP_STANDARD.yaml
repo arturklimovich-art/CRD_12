@@ -1,0 +1,115 @@
+﻿$schema: "https://json-schema.org/draft/2020-12/schema"
+version: "2.0"
+phase: "CRD12_FULL_ARCHITECTURE"
+policy:
+  green_paths: 
+    - "C:\Users\Artur\Documents\CRD12\SPEC\*"
+    - "C:\Users\Artur\Documents\CRD12\scripts\*"
+    - "C:\Users\Artur\Documents\CRD12\workspace\reports\*"
+  spec_binding: true
+  ci_spec_guard: "Kurator_v1"
+blocks:
+  - id: "ARCHITECTURE_FOUNDATION"
+    alias: "phase1"
+    title: "Архитектурный фундамент системы Engineers_IT"
+    status: "DONE"
+    deps: []
+    artifacts:
+      - path: "C:\Users\Artur\Documents\CRD12\SPEC\ROADMAP_SCHEMA.yaml"
+      - path: "C:\Users\Artur\Documents\CRD12\scripts\Roadmap-AdaptiveParser.ps1"
+    tasks:
+      - id: "TZ_1.1"
+        title: "Создать самодостаточную версию системы"
+        steps:
+          - "Настроить прием ТЗ от Orchestrator (Bot)"
+          - "Реализовать генерацию и безопасное применение кода (Engineer_B)"
+          - "Настроить логирование событий (Event Sourcing)"
+        spec_ref:
+          spec_id: "ARCH_001"
+          path: "C:\Users\Artur\Documents\CRD12\SPEC\architecture.yaml"
+          version: "1.0"
+    dod:
+      - "Система принимает ТЗ от Bot"
+      - "Engineer_B генерирует и применяет код"
+      - "Event Sourcing работает корректно"
+    metrics:
+      - "Время обработки ТЗ < 5 мин"
+      - "Успешность выполнения > 95%"
+
+  - id: "SELF_RECOVERY_SYSTEM"
+    alias: "phase2" 
+    title: "Система самовосстановления и контроля"
+    status: "DONE"
+    deps: ["ARCHITECTURE_FOUNDATION"]
+    artifacts:
+      - path: "C:\Users\Artur\Documents\CRD12\scripts\Roadmap-SetStatus.ps1"
+      - path: "C:\Users\Artur\Documents\CRD12\DB\navigator_tables.sql"
+    tasks:
+      - id: "TZ_2.1"
+        title: "Реализовать восстановление после ошибок"
+        steps:
+          - "Настроить механизмы отката (rollback)"
+          - "Реализовать систему снапшотов"
+          - "Настроить обновление базы знаний"
+    dod:
+      - "Система восстанавливается после ошибок"
+      - "Снапшоты создаются автоматически"
+    metrics:
+      - "Время восстановления < 2 мин"
+      - "Полнота снапшотов 100%"
+
+  - id: "NAVIGATOR_INTEGRATION"
+    alias: "phase3"
+    title: "Централизованный контроль статусов через Navigator"
+    status: "DONE" 
+    deps: ["SELF_RECOVERY_SYSTEM"]
+    artifacts:
+      - path: "C:\Users\Artur\Documents\CRD12\DB\navigator_views.sql"
+      - path: "C:\Users\Artur\Documents\CRD12\scripts\verify_navigator.ps1"
+    tasks:
+      - id: "TZ_3.1"
+        title: "Настроить централизованный контроль статусов"
+        steps:
+          - "Интегрировать Navigator DB"
+          - "Настроить систему отчетности"
+    dod:
+      - "Navigator DB интегрирована"
+      - "Статусы обновляются автоматически"
+
+  - id: "FULL_ARCHITECTURE_CRD12"
+    alias: "phase4"
+    title: "Реализация полной архитектуры CRD12"
+    status: "IN_PROGRESS"
+    deps: ["NAVIGATOR_INTEGRATION"]
+    artifacts:
+      - path: "C:\Users\Artur\Documents\CRD12\workspace\reports\FULL_ARCHITECTURE_IMPLEMENTATION_TZ.md"
+    tasks:
+      - id: "TZ_4.1"
+        title: "Стандартизация формата Roadmap"
+        steps:
+          - "Проанализировать текущий формат"
+          - "Создать YAML шаблон"
+          - "Мигрировать существующие данные"
+        spec_ref:
+          spec_id: "ROADMAP_001"
+          path: "C:\Users\Artur\Documents\CRD12\SPEC\ROADMAP_SCHEMA.yaml"
+          version: "1.0"
+      - id: "TZ_4.2"
+        title: "Создание базы данных технических заданий"
+        steps:
+          - "Спроектировать схему БД ТЗ"
+          - "Создать таблицы technical_specifications"
+          - "Реализовать API для работы с ТЗ"
+      - id: "TZ_4.3"
+        title: "Разработка Bot Orchestrator для создания ТЗ"
+        steps:
+          - "Реализовать парсер Roadmap"
+          - "Создать ИИ-агента для разработки ТЗ"
+          - "Настроить сохранение ТЗ в БД"
+    dod:
+      - "Roadmap в стандартном формате"
+      - "База данных ТЗ создана"
+      - "Bot создает ТЗ автоматически"
+    metrics:
+      - "Автоматическое создание ТЗ для 100% задач"
+      - "Время создания ТЗ < 10 мин"

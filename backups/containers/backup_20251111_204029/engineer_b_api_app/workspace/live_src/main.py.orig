@@ -1,0 +1,122 @@
+﻿from fastapi import FastAPI, HTTPException, Body
+from datetime import datetime
+import psycopg2
+import os
+import json
+import hashlib
+
+app = FastAPI(title="Engineer B API - Patch Inline")
+
+DB_DSN = os.getenv("DATABASE_URL", "postgres://crd_user:crd12@crd12_pgvector:5432/crd12")
+
+
+def log_event(conn, patch_id, event_type, payload):
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO eng_it.patch_events(patch_id, event_type, payload) VALUES (%s, %s, %s::jsonb)",
+            (patch_id, event_type, json.dumps(payload)),
+        )
+        conn.commit()
+
+
+@app.post("/api/patches/{patch_id}/apply")
+async def apply_manual_patch_inline(patch_id: str, approve_token: str = Body(..., embed=False)):
+    import subprocess
+
+    try:
+        conn = psycopg2.connect(DB_DSN)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB connection error: {e}")
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT status, approve_token, filename FROM eng_it.patches WHERE id = %s",
+                (patch_id,)
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Patch not found")
+
+            status, db_token, filename = row
+
+            if db_token != approve_token:
+                raise HTTPException(status_code=403, detail="Invalid approve_token")
+            if status not in ("approved", "validated"):
+                raise HTTPException(status_code=409, detail=f"Patch status invalid: {status}")
+
+            log_event(conn, patch_id, "eng.apply_patch.started", {
+                "by": "inline-main",
+                "time": datetime.utcnow().isoformat()
+            })
+
+            patch_path = f"/app/workspace/patches_applied/{filename}"
+            if not filename or not os.path.exists(patch_path):
+                raise HTTPException(status_code=404, detail=f"Patch file not found: {patch_path}")
+
+            sha256 = hashlib.sha256(open(patch_path, "rb").read()).hexdigest()
+
+            # --- SMOKE TEST HOOK ---
+            smoke_result = None
+            smoke_path = "/app/workspace/patches/test_patch.py"
+            if os.path.exists(smoke_path):
+                try:
+                    proc = subprocess.run(
+                        ["python3", smoke_path],
+                        capture_output=True, text=True, timeout=30
+                    )
+                    smoke_result = proc.returncode
+                    log_event(conn, patch_id, "eng.smoke.output", {
+                        "stdout": proc.stdout[-500:], "stderr": proc.stderr[-500:]
+                    })
+                    if smoke_result == 0:
+                        log_event(conn, patch_id, "eng.smoke.ok", {"result": "passed"})
+                    else:
+                        log_event(conn, patch_id, "eng.smoke.failed", {"code": smoke_result})
+                        cur.execute(
+                            "UPDATE eng_it.patches SET status='rolled_back', rollback_at=now() WHERE id = %s",
+                            (patch_id,)
+                        )
+                        conn.commit()
+                        raise HTTPException(status_code=500, detail="Smoke test failed")
+                except Exception as smoke_err:
+                    log_event(conn, patch_id, "eng.smoke.error", {"error": str(smoke_err)})
+
+            # --- END SMOKE TEST ---
+
+            log_event(conn, patch_id, "eng.apply_patch.finished", {
+                "dst": patch_path,
+                "sha256": sha256,
+                "status": "copied"
+            })
+
+            cur.execute(
+                "UPDATE eng_it.patches SET status='success', applied_at=now() WHERE id = %s",
+                (patch_id,)
+            )
+            conn.commit()
+
+        return {
+            "patch_id": patch_id,
+            "status": "success" if smoke_result in (None, 0) else "rolled_back",
+            "sha256": sha256,
+            "applied_at": datetime.utcnow().isoformat() + "Z"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        log_event(conn, patch_id, "eng.apply_patch.failed", {"error": str(e)})
+        raise HTTPException(status_code=500, detail=f"Error applying patch: {e}")
+    finally:
+        conn.close()
+@app.get("/health")
+async def health():
+    return {"status": "ok", "ts": datetime.utcnow().isoformat() + "Z"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+

@@ -1,0 +1,10 @@
+﻿{
+    "PlanID":  "43472105-5e5b-4fe0-aea9-fbe64592cc9e",
+    "Timestamp":  "2025-11-01T09:12:19Z",
+    "TraceID":  "490102e8-79ae-4bff-9c91-9dcc9a9c9aea",
+    "Success":  true,
+    "TZ_ID":  "9d4d8215-2644-44a3-b0bb-78293735b716",
+    "PlanStatus":  null,
+    "TestName":  "Corrected Smoke Test E2E",
+    "TasksQueued":  null
+}

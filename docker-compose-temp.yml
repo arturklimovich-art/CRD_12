@@ -1,0 +1,19 @@
+﻿version: '3.8'
+services:
+  engineer_b_api:
+    image: crd12_engineer_b_api_local:latest
+    container_name: crd12_engineer_b_api_temp
+    environment:
+      DATABASE_URL: postgres://crd_user:crd12@crd12_pgvector:5432/crd12
+      OPENAI_API_KEY: 
+      OPENAI_MODEL_NAME: 
+      TZ: Europe/Oslo
+    ports:
+      - "8001:8000"
+      - "8031:8030"
+    # ВРЕМЕННО ОТКЛЮЧАЕМ PROBLEMATIC VOLUME
+    # volumes:
+    #   - ./src/engineer_b_api:/app
+    depends_on:
+      crd12_pgvector:
+        condition: service_healthy

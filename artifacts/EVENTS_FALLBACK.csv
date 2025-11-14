@@ -1,0 +1,11 @@
+﻿event_id,event_type,created_at,description,user_id,metadata
+1,user_login,2024-01-01 10:00:00,User authentication successful,123,'{"ip":"192.168.1.1"}'
+2,data_export,2024-01-01 11:00:00,Data exported to CSV,456,'{"format":"csv","rows":150}'
+3,system_check,2024-01-01 12:00:00,System health check completed,789,'{"status":"healthy","load":0.45}'
+4,backup_start,2024-01-01 13:00:00,Database backup initiated,101,'{"size_gb":2.5,"tables":15}'
+5,backup_complete,2024-01-01 14:00:00,Database backup completed,102,'{"duration_sec":125,"success":true}'
+6,audit_export,2024-01-01 15:00:00,Audit data exported,103,'{"period":"daily","records":1200}'
+7,error_occurred,2024-01-01 16:00:00,Application error detected,104,'{"component":"api","severity":"high"}'
+8,maintenance_start,2024-01-01 17:00:00,System maintenance started,105,'{"duration_min":30,"type":"routine"}'
+9,maintenance_end,2024-01-01 17:30:00,System maintenance completed,106,'{"success":true,"issues":0}'
+10,user_logout,2024-01-01 18:00:00,User session ended,107,'{"session_min":120,"reason":"timeout"}'

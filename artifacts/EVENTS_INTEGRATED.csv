@@ -1,0 +1,11 @@
+﻿event_id,event_type,created_at,description,status,user_id
+1,ROADMAP_START,2024-01-01 10:00:00,Запуск процесса roadmap,completed,1001
+2,DB_EXPORT_INIT,2024-01-01 11:00:00,Инициализация выгрузки данных из БД,completed,1002  
+3,STATUS_UPDATE,2024-01-01 12:00:00,Обновление статусов задач,in_progress,1003
+4,VALIDATION,2024-01-01 13:00:00,Валидация данных roadmap,pending,1004
+5,EXPORT_COMPLETE,2024-01-01 14:00:00,Завершение выгрузки фактов,completed,1005
+6,AGENT_NOTIFY,2024-01-01 15:00:00,Уведомление ИИ-агентов,completed,1006
+7,AUDIT_LOG,2024-01-01 16:00:00,Запись в аудит-лог,completed,1007
+8,SYSTEM_CHECK,2024-01-01 17:00:00,Проверка системы,completed,1008
+9,ROADMAP_APPROVE,2024-01-01 18:00:00,Утверждение roadmap,completed,1009
+10,WORKFLOW_COMPLETE,2024-01-01 19:00:00,Workflow завершен,completed,1010

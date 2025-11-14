@@ -1,0 +1,136 @@
+﻿# docker-compose.yml
+
+services:
+  pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: crd12_pgvector
+    environment:
+      POSTGRES_DB:
+      POSTGRES_USER:
+      POSTGRES_PASSWORD:
+      TZ:
+    ports:
+      - "5433:5432"
+    healthcheck:
+      # FIX: ?????????? ?????????? ????????? ?????????? ? ????? host
+      test: ["CMD-SHELL", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -h localhost || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: always
+
+  deepseek_proxy:
+    build: ./src/app/deepseek_proxy
+    image: crd12_deepseek_proxy_local:latest
+    container_name: crd12_deepseek_proxy
+    environment:
+      TZ:
+      DEEPSEEK_API_KEY:
+      DEEPSEEK_MODEL_NAME:
+    ports:
+      - "8010:8010"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8010/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  engineer_b_api:
+    build:
+      context: ./src/app/engineer_b_api
+      dockerfile: Dockerfile
+      # ????????? ??? ?????? ????:
+      args:
+        CACHE_BUST: "${CACHE_BUST:-0}"
+    image: crd12_engineer_b_api_local:latest
+    container_name: crd12_engineer_b_api
+
+    # === ????? ???????????? ??? ENGINEER B ===
+    volumes:
+      # - ./src/app/engineer_b_api:/app
+
+    environment:
+      TZ:
+      DATABASE_URL:
+      DEEPSEEK_PROXY_URL:
+      DEEPSEEK_API_KEY:
+      GEMINI_API_KEY:
+      GEMINI_MODEL_NAME:
+      GEMINI_MODEL:             # app.py ?????? GEMINI_MODEL
+      LANG: C.UTF-8
+      PYTHONIOENCODING: utf-8
+
+      # --- Variant A: ???????/?????????/??????? ---
+      S3_ENDPOINT:
+      S3_BUCKET:
+      S3_ACCESS_KEY:
+      S3_SECRET_KEY:
+      S3_SECURE: "1"            # 1=https, 0=http
+      EVENT_SINK: "auto"        # auto|db|log
+      METRICS_PORT: "9108"      # supervisor metrics exporter
+
+    depends_on:
+      pgvector:
+        condition: service_healthy
+      deepseek_proxy:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request,sys; r=urllib.request.urlopen('http://localhost:8000/ready',timeout=2); sys.exit(0 if r.status==200 else 1)"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+    ports:
+      - "8000:8000"
+      - "9108:9108"             # Prometheus scrape
+    restart: unless-stopped
+
+  bot:
+    build: ./src/bot
+    image: crd12_bot_local:latest
+    container_name: crd12_bot
+    command: python -m tasks.task_manager
+
+    # === ????? ???????????? ??? BOT ===
+    volumes:
+      - ./src/bot:/app
+
+    environment:
+      SELF_BUILDING_MODE: "true"
+      TZ:
+      TELEGRAM_BOT_TOKEN:
+      ENGINEER_B_API_URL:
+      DATABASE_URL:
+      OPENAI_API_KEY:
+      OPENAI_MODEL_NAME:
+      LANG: C.UTF-8
+      PYTHONIOENCODING: utf-8
+      # --- ???????? ????? ???????? LLM ?????? ?? ????? ????? Step-9 ---
+      AGENT_STUB_LLM: "true"
+      POSTGRES_USER:
+      POSTGRES_PASSWORD:
+      POSTGRES_DB:
+      POSTGRES_HOST: pgvector
+      POST_DEPLOY_VALIDATE: ${POST_DEPLOY_VALIDATE:-true}
+      POST_DEPLOY_TIMEOUT_SEC: ${POST_DEPLOY_TIMEOUT_SEC:-60}
+      POST_DEPLOY_POLL_SEC: ${POST_DEPLOY_POLL_SEC:-2}
+      POST_DEPLOY_MIN_CONSEC_OK: ${POST_DEPLOY_MIN_CONSEC_OK:-2}
+
+    depends_on:
+      engineer_b_api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+

@@ -1,0 +1,33 @@
+﻿{
+    "timestamp":  "2025-11-05 13:23:11",
+    "docker_containers":  [
+                              "crd12_ollama | Up 47 hours | 127.0.0.1:11434-\u003e11434/tcp",
+                              "crd12_events_service | Up 7 days (unhealthy) | 0.0.0.0:8031-\u003e8031/tcp, [::]:8031-\u003e8031/tcp",
+                              "crd12_deepseek_proxy | Up 7 days (healthy) | 0.0.0.0:8010-\u003e8010/tcp, [::]:8010-\u003e8010/tcp",
+                              "crd12_engineer_b_api | Up 6 days (healthy) | 0.0.0.0:8030-\u003e8030/tcp, [::]:8030-\u003e8030/tcp, 0.0.0.0:9108-\u003e9108/tcp, [::]:9108-\u003e9108/tcp, 0.0.0.0:8001-\u003e8000/tcp, [::]:8001-\u003e8000/tcp",
+                              "crd12_pgvector | Up 9 days (healthy) | 0.0.0.0:5433-\u003e5432/tcp, [::]:5433-\u003e5432/tcp"
+                          ],
+    "project_paths":  [
+                          "C:\\Users\\Artur\\Documents\\CRD12\\ADR",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\agents",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\artifacts",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\backups",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\config",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\DB",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\docs",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\engb_app_snapshot_20251027_154311",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\memory",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\patches",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\ROADMAP",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\S3-Learning",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\S3-Patches",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\S3-Security",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\S3-Telemetry",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\scripts",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\SPEC",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\src",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\tests",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\workspace"
+                      ],
+    "roadmap_version":  "GENERAL_PLAN_2025-11-05.md"
+}

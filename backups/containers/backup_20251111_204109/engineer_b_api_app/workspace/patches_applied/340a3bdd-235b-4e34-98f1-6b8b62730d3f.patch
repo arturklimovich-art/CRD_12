@@ -1,0 +1,4 @@
+
+def integration_test_function():
+    """Full integration test from PatchApplier"""
+    return "SUCCESS: Full chain works!"

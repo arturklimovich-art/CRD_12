@@ -1,0 +1,6 @@
+﻿event_id,event_type,created_at,description
+1,user_login,2024-01-01 10:00:00,User logged in
+2,data_export,2024-01-01 11:00:00,Data exported to CSV
+3,system_check,2024-01-01 12:00:00,System health check completed
+4,backup_start,2024-01-01 13:00:00,Database backup started
+5,backup_end,2024-01-01 14:00:00,Database backup completed

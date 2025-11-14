@@ -1,0 +1,47 @@
+﻿{
+    "tz_id":  "e9ccec23-51fa-434d-ba51-d6055791cbb4",
+    "title":  "B1-T1 — Схемы таблиц и индексы (реализация миграций/проекций nav.*)",
+    "description":  "Реализовать и проверить проекции nav.roadmap_items/nav.roadmap_revisions, индексы и матвью дерева; гарантировать append-only обновление только из core.events.",
+    "acceptance_criteria":  [
+                                "nav.roadmap_items и nav.roadmap_revisions существуют с нужными полями и индексами",
+                                "Матвью nav.roadmap_tree_view строит корректную иерархию",
+                                "CRUD в проекции отсутствует; обновление происходит только проектором из core.events",
+                                "Тесты T1..T3 из acceptance проходят (смоук и структура)"
+                            ],
+    "artifacts":  [
+                      "scripts/db/migrations/2025_11_roadmap.sql",
+                      "scripts/db/migrations/2025_11_roadmap_projector.sql"
+                  ],
+    "tech_stack":  [
+                       "PostgreSQL 15",
+                       "PL/pgSQL",
+                       "JSONB",
+                       "GIN",
+                       "Materialized View"
+                   ],
+    "steps":  [
+                  {
+                      "details":  "Проверка существования таблиц/индексов/матвью; при отсутствии — создать миграции",
+                      "title":  "Проверить схемы nav.*"
+                  },
+                  {
+                      "details":  "Функции nav.project_roadmap_event/catchup работают, оффсет сохраняется",
+                      "title":  "Проверить projector"
+                  },
+                  {
+                      "details":  "Проектор применяет события roadmap.* → корректное наполнение nav.*",
+                      "title":  "Прогон событий"
+                  },
+                  {
+                      "details":  "Запросы на структуру и выборки top-N, проверка кириллицы UTF-8",
+                      "title":  "Смоук-тест"
+                  }
+              ],
+    "executor":  "Engineer_B",
+    "priority":  1,
+    "deadline_iso":  null,
+    "idempotency_key":  "e9ccec23-51fa-434d-ba51-d6055791cbb4",
+    "correlation_id":  "e9ccec23-51fa-434d-ba51-d6055791cbb4",
+    "tz_path":  "workspace/roadmap/tz/e9ccec23-51fa-434d-ba51-d6055791cbb4.json",
+    "source_item_id":  "0135b73c-ceb0-4c57-8ee5-883730137e54"
+}

@@ -1,0 +1,3 @@
+
+def final_test_function():
+    return "PatchManager v1.2 works!"

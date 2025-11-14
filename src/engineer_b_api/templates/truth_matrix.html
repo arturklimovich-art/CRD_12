@@ -1,0 +1,122 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Truth Matrix - CRD12</title>
+    <link rel="stylesheet" href="/static/css/truth.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🔍 Truth Matrix Dashboard</h1>
+            <nav class="nav-tabs">
+                <a href="/roadmap" class="nav-tab">📊 Roadmap</a>
+                <a href="/truth/matrix" class="nav-tab active">🔍 Truth Matrix</a>
+                <a href="/truth/verdicts" class="nav-tab">✅ Verdicts</a>
+                <a href="/truth/evidence" class="nav-tab">📋 Evidence</a>
+            </nav>
+            <div class="header-stats" id="headerStats">
+                <div class="stat-card">
+                    <span class="stat-label">Total Tasks</span>
+                    <span class="stat-value" id="totalTasks">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Verified</span>
+                    <span class="stat-value stat-verified" id="verifiedTasks">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">With Evidence</span>
+                    <span class="stat-value stat-evidence" id="withEvidence">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Mismatches</span>
+                    <span class="stat-value stat-mismatch" id="mismatchCount">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Coverage</span>
+                    <span class="stat-value" id="coveragePercent">-</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <!-- Active Revision Info -->
+            <section class="revision-info" id="revisionInfo">
+                <h3>📄 Active Truth Revision</h3>
+                <div class="revision-card">
+                    <div class="loading">Loading revision info...</div>
+                </div>
+            </section>
+
+            <!-- Filters -->
+            <section class="filters">
+                <div class="filter-group">
+                    <label for="filterStatus">Filter by Status:</label>
+                    <select id="filterStatus" class="filter-select">
+                        <option value="all">All Statuses</option>
+                        <option value="mismatch">⚠️ Mismatches Only</option>
+                        <option value="verified">✅ Verified Only</option>
+                        <option value="unverified">❌ Unverified Only</option>
+                        <option value="with_evidence">📋 With Evidence</option>
+                        <option value="no_evidence">🔍 No Evidence</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="searchTask">Search Task:</label>
+                    <input type="text" id="searchTask" class="filter-input" placeholder="Type task title...">
+                </div>
+            </section>
+
+            <!-- Truth Matrix Table -->
+            <section class="matrix-section">
+                <h2>Truth Matrix - Navigator vs Verified Status</h2>
+                <div class="table-container">
+                    <table class="truth-matrix-table" id="matrixTable">
+                        <thead>
+                            <tr>
+                                <th>Task Title</th>
+                                <th>Navigator Status</th>
+                                <th>Verified Status</th>
+                                <th>Evidence</th>
+                                <th>Verdict Date</th>
+                                <th>Match</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matrixTableBody">
+                            <tr>
+                                <td colspan="6" class="loading">Loading truth matrix...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Legend -->
+            <section class="legend">
+                <h3>Legend</h3>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <span class="badge badge-match">✅ Match</span>
+                        <span>Статусы совпадают</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="badge badge-mismatch">⚠️ Mismatch</span>
+                        <span>Расхождение статусов</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="badge badge-unverified">❌ Unverified</span>
+                        <span>Нет верификации</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="badge badge-evidence">📋 Evidence</span>
+                        <span>Есть артефакт-доказательство</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/js/truth.js"></script>
+</body>
+</html>

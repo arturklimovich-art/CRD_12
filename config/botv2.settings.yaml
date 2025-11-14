@@ -1,0 +1,9 @@
+complexity_scale: 1..100
+retries_allowed: 3
+task_timeout_sec: 900
+engineer_b_parallelism: 2
+events_api_base: "http://events_api:8040"
+job_queue_api_base: "http://job_queue:8050"
+engineer_b_api_base: "http://engineer_b:8060"
+event_schema_version: "evt.v1"
+job_schema_version: "job.v1"

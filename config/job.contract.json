@@ -1,0 +1,71 @@
+{
+  "\": "http://json-schema.org/draft-07/schema#",
+  "title": "Job Contract",
+  "description": "Contract for jobs sent to Engineer_B queue",
+  "type": "object",
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "executor": {
+      "type": "string",
+      "const": "Engineer_B"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": ["patch", "test", "misc"]
+        },
+        "content_ref": {
+          "type": "string"
+        }
+      },
+      "required": ["type", "content_ref"]
+    },
+    "parent_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      }
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "deadline_iso": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "retries_allowed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10
+    },
+    "idempotency_key": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "correlation_id": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "job.v1"
+    }
+  },
+  "required": [
+    "task_id",
+    "executor",
+    "payload",
+    "parent_ids",
+    "priority",
+    "retries_allowed",
+    "idempotency_key",
+    "correlation_id",
+    "schema_version"
+  ]
+}

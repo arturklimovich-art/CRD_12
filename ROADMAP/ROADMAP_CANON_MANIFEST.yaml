@@ -1,0 +1,40 @@
+﻿# ROADMAP CANON MANIFEST (Updated)
+# Версия: 2.0
+# Обновлено: 2025-11-12T01:50:23Z
+
+canon:
+  source_of_truth: "database"  # БД = primary source
+  primary_tables:
+    - "eng_it.roadmap_blocks"
+    - "eng_it.roadmap_tasks"
+    - "eng_it.roadmap_events"
+  generated_files:
+    yaml: "ROADMAP\ROADMAP_CANONICAL_FROM_DB.yaml"
+    markdown: "ROADMAP\ROADMAP_CANONICAL_FROM_DB.md"
+  schema: "ROADMAP\ROADMAP_STANDARD.yaml"
+  
+statistics:
+  blocks_total: 17
+  tasks_total: 18
+  tasks_migrated: 18
+  links_created: 17
+  
+archived:
+  timestamp: "20251112_013933"
+  location: "ROADMAP\archive\20251112_013933\"
+  old_files:
+    - "ROADMAP.md"
+    - "REPORT_*.md"
+
+rules:
+  - "БД - единственный источник истины"
+  - "YAML/MD генерируются из БД автоматически"
+  - "Редактирование только через API"
+  - "Прямое редактирование YAML запрещено"
+  - "Все изменения логируются в roadmap_events"
+  
+next_steps:
+  - "Создать API v1 endpoints (/api/v1/roadmap/*)"
+  - "Создать PowerShell команды (Get-Roadmap, New-RoadmapTask, Set-RoadmapStatus)"
+  - "Интеграция с Telegram Bot"
+  - "Автоматическая регенерация YAML при изменениях в БД"

@@ -1,0 +1,52 @@
+﻿version: '3.8'
+
+services:
+  engineer_b_api:
+    build:
+      context: ./src/app/engineer_b_api
+      dockerfile: Dockerfile
+    image: crd12_engineer_b_api_local:latest
+    container_name: crd12_engineer_b_api
+    environment:
+      TZ: Europe/Oslo
+      DATABASE_URL: postgres://crd_user:crd12@pgvector:5432/crd12
+      DEEPSEEK_PROXY_URL: http://deepseek_proxy:8010/llm/complete
+      OPENAI_API_KEY: 
+      GEMINI_API_KEY: 
+      GEMINI_MODEL_NAME: gemini-2.0-flash-exp
+      GEMINI_MODEL: gemini-2.0-flash-exp
+      LANG: C.UTF-8
+      PYTHONIOENCODING: utf-8
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+      PYTHONPATH: /app
+      UVICORN_HOST: 0.0.0.0
+      UVICORN_PORT: 8000
+      SUPERVISOR_PORT: 8030
+      S3_ENDPOINT: null
+      S3_BUCKET: null
+      S3_ACCESS_KEY: null
+      POSTGRES_HOST: pgvector
+      POST_DEPLOY_VALIDATE: "true"
+      POST_DEPLOY_TIMEOUT_SEC: "60"
+      POST_DEPLOY_POLL_SEC: "2"
+      POST_DEPLOY_MIN_CONSEC_OK: "2"
+    volumes:
+      - ./docker_volumes/engineer_b_api/patches:/app/workspace/patches
+      - ./docker_volumes/engineer_b_api/reports:/app/workspace/reports
+      - ./docker_volumes/engineer_b_api/snapshots:/app/workspace/snapshots
+      - ./docker_volumes/engineer_b_api/adr:/app/workspace/ADR
+      - ./docker_volumes/engineer_b_api/logs:/app/workspace/logs
+    depends_on:
+      engineer_b_api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep python | grep task_manager"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  pgdata:

@@ -1,0 +1,17 @@
+﻿id: E1-PATCH-MANUAL
+title: "Внедрение механизма ручного патча (официальный apply)"
+goal: "Создать безопасный и управляемый процесс применения ручных патчей через Curator→Engineer_B→Navigator"
+status: "planned"
+stage: "E1"
+blocks:
+  - "Блок1: Данные и БД (eng_it.patches, patch_events)"
+  - "Блок2: API-уровень (Bot/Engineer_B/Curator)"
+  - "Блок3: Применение патча в Engineer_B"
+  - "Блок4: Curator Policy-Gate"
+  - "Блок5: PowerShell CLI"
+  - "Блок6: Наблюдаемость и журналирование"
+  - "Блок7: Тестирование и DoD"
+  - "Блок8: Emergency fallback"
+owner: "system"
+risk_band: "medium"
+due_date: "2025-11-20"

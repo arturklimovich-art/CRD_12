@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/roadmap.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>??? CRD12 Roadmap Dashboard</h1>
+            <div class="header-stats" id="headerStats">
+                <div class="stat-card">
+                    <span class="stat-label">Blocks</span>
+                    <span class="stat-value" id="totalBlocks">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Tasks</span>
+                    <span class="stat-value" id="totalTasks">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Done</span>
+                    <span class="stat-value stat-done" id="totalDone">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Progress</span>
+                    <span class="stat-value stat-progress" id="overallCompletion">-</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <section class="blocks-section">
+                <h2>Roadmap Blocks</h2>
+                <div id="blocksContainer" class="blocks-grid">
+                    <div class="loading">Loading blocks...</div>
+                </div>
+            </section>
+
+            <section class="tasks-section">
+                <h2>Recent Tasks</h2>
+                <div id="tasksContainer" class="tasks-list">
+                    <div class="loading">Loading tasks...</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/js/roadmap.js"></script>
+</body>
+</html>

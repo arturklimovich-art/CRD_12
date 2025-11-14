@@ -1,0 +1,8 @@
+﻿"TaskId","Title","StatusMarker","Status"
+"E1-B9","Контур А (PowerShell агенты)","✅ DONE","done"
+"E1-B6","Bot v2 (Интеллектуальный планировщик)","✅ DONE","done"
+"E1-B7","Bot v3 (Менеджер Roadmap/Readmap)","✅ DONE","done"
+"E1-B8","Загрузка и инициализация Roadmap","🕓 PLANNED","planned"
+"E1-B11","Local LLM Stack (Ollama + proxy)","🕓 PLANNED","planned"
+"E1-B12","Telegram-интеграция (2 режима)","🕓 PLANNED","planned"
+"E1-B10","Curator v1→v3 (triage/spec-repair/policy)","🕓 PLANNED","planned"

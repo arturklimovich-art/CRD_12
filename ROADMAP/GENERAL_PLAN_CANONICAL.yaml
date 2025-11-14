@@ -1,0 +1,39 @@
+﻿# CRD12 ROADMAP - CANONICAL SOURCE OF TRUTH
+# Version: 2.0
+# Created: 20251112_013933
+# System: Engineers_IT + TradLab
+
+# =============================================================================
+# ЭТОТ ФАЙЛ - ЕДИНСТВЕННЫЙ ИСТОЧНИК ИСТИНЫ ДЛЯ ROADMAP
+# Все остальные версии архивированы в ROADMAP\archive\
+# =============================================================================
+
+meta:
+  version: "2.0"
+  system: "Engineers_IT"
+  updated_at: "2025-11-12T01:39:40Z"
+  owner: "arturklimovich-art"
+  description: "Генеральный план Engineers_IT - Канонический источник истины"
+  schema_ref: "ROADMAP\ROADMAP_STANDARD.yaml"
+
+# =============================================================================
+# СХЕМА И ПОЛИТИКИ (из ROADMAP_STANDARD.yaml)
+# =============================================================================
+
+policy:
+  green_paths:
+    - "C:\Users\Artur\Documents\CRD12\SPEC\*"
+    - "C:\Users\Artur\Documents\CRD12\scripts\*"
+    - "C:\Users\Artur\Documents\CRD12\workspace\reports\*"
+    - "/app/agents/*"
+    - "/app/src/engineer_b_api/*"
+    - "/app/src/bot/*"
+  spec_binding: true
+  ci_spec_guard: "Kurator_v1"
+  strict_mode: true
+
+# =============================================================================
+# БЛОКИ И ЗАДАЧИ (из GENERAL_PLAN.yaml + БД eng_it.tasks)
+# =============================================================================
+
+# Блоки не найдены в исходном файле

@@ -1,0 +1,11 @@
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "version": "v9A_OK_RETEST"}
+
+@app.get("/ready")
+async def readiness_check():
+    return {"status": "ready"}

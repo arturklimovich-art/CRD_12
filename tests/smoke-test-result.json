@@ -1,0 +1,11 @@
+﻿{
+    "TestName":  "Smoke Test E2E",
+    "Timestamp":  "2025-11-03T17:42:35Z",
+    "TZ_ID":  "9d4d8215-2644-44a3-b0bb-78293735b716",
+    "TraceID":  [
+                    "a21990c4-1c3f-48b8-87a9-78b6aad05d64",
+                    "a21990c4-1c3f-48b8-87a9-78b6aad05d64"
+                ],
+    "PlanID":  "b6618765-3ec9-47be-8fbd-87a5dac76808",
+    "Success":  true
+}

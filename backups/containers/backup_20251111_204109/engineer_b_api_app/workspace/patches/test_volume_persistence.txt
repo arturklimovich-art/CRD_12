@@ -1,0 +1,3 @@
+﻿# Test file for volume persistence
+# Created: 11/10/2025 10:22:16
+# This file should survive container rebuild

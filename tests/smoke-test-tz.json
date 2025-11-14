@@ -1,0 +1,13 @@
+﻿{
+    "deadline_iso":  "2025-11-01T09:54:06Z",
+    "submitted_by":  "system",
+    "tz_id":  "9d4d8215-2644-44a3-b0bb-78293735b716",
+    "schema_version":  "tz.v1",
+    "description":  "Простая тестовая задача для проверки E2E цикла работы Bot v2. Создать тестовый файл и проверить его наличие.",
+    "attachments":  [
+
+                    ],
+    "title":  "Smoke Test: Проверка работы Bot v2",
+    "priority":  "normal",
+    "trace_id":  "bb468d01-228c-4fe0-85e4-a5002073a5dd"
+}

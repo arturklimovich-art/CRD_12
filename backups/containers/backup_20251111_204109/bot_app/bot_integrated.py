@@ -1,0 +1,383 @@
+﻿#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Telegram Bot для управления Roadmap и запуска Engineer API
+Версия: 2.0 (Integrated with Roadmap + PatchManager)
+Дата: 2025-11-11
+"""
+
+import os
+import sys
+import logging
+import json
+import asyncio
+from datetime import datetime
+from typing import Optional
+
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+
+# Добавляем текущую директорию в путь
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+# Импорты
+try:
+    from config import TELEGRAM_BOT_TOKEN
+    from database import SessionLocal, Task
+    import requests
+except ImportError as e:
+    print(f"❌ CRITICAL ERROR importing modules: {e}")
+    sys.exit(1)
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("bot_integrated")
+
+# Константы
+ENGINEER_API_URL = os.getenv("ENGINEER_B_API_URL", "http://engineer_b_api:8000")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgres://crd_user:crd12@pgvector:5432/crd12")
+
+
+# ============================================================================
+# ФУНКЦИИ ДЛЯ РАБОТЫ С БД
+# ============================================================================
+
+def save_message_to_db(chat_id: int, user_id: int, username: str, message_text: str, message_type: str = "text", bot_response: str = None):
+    """Сохраняет сообщение в БД для истории"""
+    import psycopg2
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO eng_it.telegram_messages 
+                (chat_id, user_id, username, message_text, message_type, bot_response)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (chat_id, user_id, username, message_text, message_type, bot_response))
+            conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"Failed to save message to DB: {e}")
+
+
+def get_bot_context(key: str) -> Optional[dict]:
+    """Получает контекст Bot из БД"""
+    import psycopg2
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        with conn.cursor() as cur:
+            cur.execute("SELECT context_value FROM eng_it.bot_context WHERE context_key = %s", (key,))
+            row = cur.fetchone()
+            conn.close()
+            return row[0] if row else None
+    except Exception as e:
+        logger.error(f"Failed to get context: {e}")
+        return None
+
+
+def create_task_in_roadmap(task_id: str, title: str, chat_id: int, priority: int = 0) -> bool:
+    """Создаёт задачу в Roadmap (eng_it.tasks)"""
+    import psycopg2
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO eng_it.tasks (id, title, status, created_by, telegram_chat_id, priority)
+                VALUES (%s, %s, 'planned', 'telegram_bot', %s, %s)
+                ON CONFLICT (id) DO NOTHING
+                RETURNING id
+            """, (task_id, title, chat_id, priority))
+            result = cur.fetchone()
+            conn.commit()
+        conn.close()
+        return result is not None
+    except Exception as e:
+        logger.error(f"Failed to create task: {e}")
+        return False
+
+
+def get_next_planned_task() -> Optional[dict]:
+    """Получает следующую planned задачу из Roadmap"""
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    try:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, title, priority, created_at, telegram_chat_id
+                FROM eng_it.tasks
+                WHERE status = 'planned'
+                ORDER BY priority DESC, created_at ASC
+                LIMIT 1
+            """)
+            task = cur.fetchone()
+        conn.close()
+        return dict(task) if task else None
+    except Exception as e:
+        logger.error(f"Failed to get next task: {e}")
+        return None
+
+
+def update_task_status(task_id: str, status: str) -> bool:
+    """Обновляет статус задачи"""
+    import psycopg2
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE eng_it.tasks 
+                SET status = %s, updated_at = NOW()
+                WHERE id = %s
+            """, (status, task_id))
+            conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to update task status: {e}")
+        return False
+
+
+def get_active_tasks() -> list:
+    """Получает список активных задач"""
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    try:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, title, status, priority, created_at
+                FROM eng_it.tasks
+                WHERE status IN ('planned', 'in_progress')
+                ORDER BY priority DESC, created_at ASC
+                LIMIT 10
+            """)
+            tasks = cur.fetchall()
+        conn.close()
+        return [dict(t) for t in tasks]
+    except Exception as e:
+        logger.error(f"Failed to get active tasks: {e}")
+        return []
+
+
+# ============================================================================
+# КОМАНДЫ TELEGRAM BOT
+# ============================================================================
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /start"""
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "unknown"
+    
+    welcome_text = """
+🤖 **CRD12 Telegram Bot v2.0**
+
+Управление Roadmap и автоматическим деплоем через PatchManager.
+
+📋 **Доступные команды**:
+/add_task <описание> - Добавить задачу в Roadmap
+/run_roadmap - Запустить следующую задачу из Roadmap
+/status - Показать активные задачи
+/help - Справка по командам
+
+✨ Все задачи создаются через PatchManager с версионированием!
+    """
+    
+    await update.message.reply_text(welcome_text, parse_mode="Markdown")
+    save_message_to_db(chat_id, user_id, username, "/start", "command", welcome_text)
+
+
+async def add_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /add_task <описание задачи>"""
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "unknown"
+    
+    # Извлекаем описание задачи
+    message_text = update.message.text
+    task_description = message_text.replace("/add_task", "").strip()
+    
+    if not task_description:
+        response = "❌ Укажите описание задачи.\n\nПример:\n`/add_task Создать функцию hello() в agents/hello.py`"
+        await update.message.reply_text(response, parse_mode="Markdown")
+        save_message_to_db(chat_id, user_id, username, message_text, "command", response)
+        return
+    
+    # Генерация task_id
+    task_id = f"tg_{chat_id}_{int(datetime.utcnow().timestamp())}"
+    
+    # Создание задачи в Roadmap
+    success = create_task_in_roadmap(task_id, task_description, chat_id, priority=5)
+    
+    if success:
+        response = f"✅ **Задача добавлена в Roadmap!**\n\n📝 ID: `{task_id}`\n📄 Описание: {task_description}\n\n🚀 Используйте /run_roadmap для запуска"
+    else:
+        response = f"❌ Не удалось создать задачу. Проверьте логи."
+    
+    await update.message.reply_text(response, parse_mode="Markdown")
+    save_message_to_db(chat_id, user_id, username, message_text, "command", response)
+
+
+async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /run_roadmap - запускает следующую задачу"""
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "unknown"
+    
+    # Получаем следующую задачу
+    task = get_next_planned_task()
+    
+    if not task:
+        response = "📭 Нет задач в статусе 'planned'.\n\nИспользуйте /add_task для создания новой задачи."
+        await update.message.reply_text(response, parse_mode="Markdown")
+        save_message_to_db(chat_id, user_id, username, "/run_roadmap", "command", response)
+        return
+    
+    task_id = task["id"]
+    task_title = task["title"]
+    
+    # Обновляем статус на in_progress
+    update_task_status(task_id, "in_progress")
+    
+    # Отправляем уведомление
+    await update.message.reply_text(
+        f"🚀 **Запускаю задачу...**\n\n📝 ID: `{task_id}`\n📄 Описание: {task_title}\n\n⏳ Отправляю в Engineer API...",
+        parse_mode="Markdown"
+    )
+    
+    # Отправка задачи в Engineer API
+    try:
+        payload = {
+            "task": task_title,
+            "job_id": task_id
+        }
+        
+        response = requests.post(
+            f"{ENGINEER_API_URL}/agent/analyze",
+            json=payload,
+            timeout=300
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            status = result.get("status", "unknown")
+            
+            if status == "passed":
+                bot_response = f"✅ **Задача выполнена успешно!**\n\n📝 ID: `{task_id}`\n\n🎯 Результат: Код применён через PatchManager"
+                update_task_status(task_id, "done")
+            else:
+                bot_response = f"⚠️ **Задача завершена с предупреждениями**\n\n📝 ID: `{task_id}`\n\n📊 Статус: {status}"
+                update_task_status(task_id, "done")
+        else:
+            bot_response = f"❌ **Ошибка выполнения задачи**\n\n📝 ID: `{task_id}`\n\n⚠️ HTTP {response.status_code}: {response.text[:200]}"
+            update_task_status(task_id, "failed")
+    
+    except Exception as e:
+        bot_response = f"❌ **Ошибка при выполнении**\n\n📝 ID: `{task_id}`\n\n⚠️ {str(e)}"
+        update_task_status(task_id, "failed")
+        logger.error(f"Error executing task {task_id}: {e}")
+    
+    await update.message.reply_text(bot_response, parse_mode="Markdown")
+    save_message_to_db(chat_id, user_id, username, "/run_roadmap", "command", bot_response)
+
+
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /status - показывает активные задачи"""
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "unknown"
+    
+    tasks = get_active_tasks()
+    
+    if not tasks:
+        response = "📭 Нет активных задач."
+    else:
+        response = "📊 **Активные задачи:**\n\n"
+        for i, task in enumerate(tasks, 1):
+            status_emoji = "🟢" if task["status"] == "in_progress" else "🔵"
+            response += f"{i}. {status_emoji} `{task['id']}`\n"
+            response += f"   📄 {task['title'][:50]}...\n"
+            response += f"   📈 Статус: {task['status']} | Приоритет: {task['priority']}\n\n"
+    
+    await update.message.reply_text(response, parse_mode="Markdown")
+    save_message_to_db(chat_id, user_id, username, "/status", "command", response)
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /help"""
+    help_text = """
+📚 **Справка по командам:**
+
+**/add_task <описание>**
+Добавляет новую задачу в Roadmap со статусом 'planned'.
+Пример: `/add_task Создать API endpoint /api/hello`
+
+**/run_roadmap**
+Запускает следующую задачу из Roadmap (по приоритету и дате).
+Задача отправляется в Engineer API для реализации через PatchManager.
+
+**/status**
+Показывает список активных задач (planned, in_progress).
+
+**/help**
+Показывает эту справку.
+
+🔗 **Интеграция:**
+Bot → Roadmap (eng_it.tasks) → Engineer API → PatchManager → Деплой
+
+✨ Все изменения кода версионируются!
+    """
+    
+    await update.message.reply_text(help_text, parse_mode="Markdown")
+
+
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик обычных сообщений (без команд)"""
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "unknown"
+    message_text = update.message.text
+    
+    response = "👋 Используйте команды для управления Roadmap.\n\nНапишите /help для справки."
+    
+    await update.message.reply_text(response)
+    save_message_to_db(chat_id, user_id, username, message_text, "text", response)
+
+
+# ============================================================================
+# ГЛАВНАЯ ФУНКЦИЯ
+# ============================================================================
+
+def main():
+    """Запуск Telegram Bot"""
+    logger.info("Starting Telegram Bot v2.0 (Integrated)")
+    
+    if not TELEGRAM_BOT_TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN not set!")
+        sys.exit(1)
+    
+    # Создание приложения
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    
+    # Регистрация обработчиков команд
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("add_task", add_task_command))
+    application.add_handler(CommandHandler("run_roadmap", run_roadmap_command))
+    application.add_handler(CommandHandler("status", status_command))
+    application.add_handler(CommandHandler("help", help_command))
+    
+    # Обработчик обычных сообщений
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+    
+    logger.info("Bot handlers registered. Starting polling...")
+    
+    # Запуск Bot
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+
+if __name__ == "__main__":
+    main()

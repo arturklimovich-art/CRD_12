@@ -1,0 +1,44 @@
+﻿{
+    "tz_id":  "97520ba9-fab7-47ba-8231-4c062714dc47",
+    "title":  "B1-T2 — События и апдейтеры (projector core.events → nav.*)",
+    "description":  "Реализовать надёжный projector: функции nav.project_roadmap_event/catchup, таблицу оффсета, вызовы refresh матвью; гарантировать idempotency и append-only.",
+    "acceptance_criteria":  [
+                                "nav.project_roadmap_event и nav.project_roadmap_catchup созданы и работают на тестовых событиях",
+                                "nav.projector_offset фиксирует last_event_id",
+                                "Повторный запуск catchup не меняет состояние (идемпотентно)",
+                                "Смоук: события roadmap.* → корректные изменения в nav.*"
+                            ],
+    "artifacts":  [
+                      "scripts/db/migrations/2025_11_roadmap_projector.sql"
+                  ],
+    "tech_stack":  [
+                       "PL/pgSQL",
+                       "PostgreSQL 15",
+                       "JSONB"
+                   ],
+    "steps":  [
+                  {
+                      "details":  "Создать/проверить функции навигации и таблицу оффсета",
+                      "title":  "Функции и оффсет"
+                  },
+                  {
+                      "details":  "Прогон событий с проверкой идемпотентности",
+                      "title":  "Catch-up"
+                  },
+                  {
+                      "details":  "Безопасный REFRESH matview nav.roadmap_tree_view",
+                      "title":  "Матвью"
+                  },
+                  {
+                      "details":  "Проверка счётчиков и выборок",
+                      "title":  "Тесты"
+                  }
+              ],
+    "executor":  "Engineer_B",
+    "priority":  1,
+    "deadline_iso":  null,
+    "idempotency_key":  "97520ba9-fab7-47ba-8231-4c062714dc47",
+    "correlation_id":  "97520ba9-fab7-47ba-8231-4c062714dc47",
+    "source_item_id":  "91459d69-9591-4fca-9091-0a750bad1f61",
+    "tz_path":  "workspace/roadmap/tz/97520ba9-fab7-47ba-8231-4c062714dc47.json"
+}

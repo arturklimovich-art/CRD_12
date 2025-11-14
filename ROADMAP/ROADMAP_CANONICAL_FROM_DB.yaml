@@ -1,0 +1,279 @@
+﻿# =====================================================================
+# CRD12 ROADMAP - CANONICAL SOURCE (Generated from Database)
+# =====================================================================
+# Version: 2.0
+# Generated: 2025-11-12T01:50:20Z
+# Source: eng_it.roadmap_blocks + eng_it.roadmap_tasks
+# Author: system (auto-generated)
+# =====================================================================
+
+meta:
+  version: "2.0"
+  system: "Engineers_IT"
+  generated_at: "2025-11-12T01:50:20Z"
+  generated_by: "system"
+  source: "PostgreSQL eng_it schema"
+  description: "Canonical Roadmap generated from database - single source of truth"
+
+# =====================================================================
+# POLICY AND RULES
+# =====================================================================
+policy:
+  source_of_truth: "database"  # БД = primary, YAML = generated
+  editing_method: "api_only"   # Редактирование только через API
+  green_paths:
+    - "C:\Users\Artur\Documents\CRD12\SPEC\*"
+    - "C:\Users\Artur\Documents\CRD12\scripts\*"
+    - "/app/agents/*"
+    - "/app/src/engineer_b_api/*"
+    - "/app/src/bot/*"
+  spec_binding: true
+  ci_spec_guard: "Kurator_v1"
+  strict_mode: true
+
+# =====================================================================
+# STATISTICS
+# =====================================================================
+statistics:
+  total_blocks: 17
+  total_tasks: 18
+  tasks_done: 9
+  tasks_in_progress: 5
+  tasks_planned: 4
+
+# =====================================================================
+# BLOCKS (E1-L* Learning, E1-B* Building)
+# =====================================================================
+
+blocks:
+  # ===================================================================
+  # LEARNING BLOCKS (E1-L*)
+  # ===================================================================
+  
+  - code: "E1-L1"
+    title: "Паспорт / ADR / Зелёный коридор"
+    stage: "E1"
+    kind: "L"
+    status: "done"
+    priority: 10
+    description: "Создание PASSPORT/ADR и определение зелёного коридора для безопасных изменений"
+    tasks:
+      - id: 1005
+        code: "TASK-1005"
+        title: "E1-L1 Паспорт/ADR/Зелёный коридор"
+        status: "done"
+  
+  - code: "E1-L2"
+    title: "Truth Matrix & Self-Building"
+    stage: "E1"
+    kind: "L"
+    status: "done"
+    priority: 20
+    description: "Внедрение матрицы истины и механизма самосборки системы"
+    tasks:
+      - id: 1006
+        code: "TASK-1006"
+        title: "E1-L2 Navigator DB (транзакции записей)"
+        status: "done"
+  
+  - code: "E1-L3"
+    title: "CI/CD Spec-Guard & Truth Binding"
+    stage: "E1"
+    kind: "L"
+    status: "in_progress"
+    priority: 30
+    description: "Интеграция Spec-Guard в CI/CD для проверки соответствия спецификациям"
+    tasks:
+      - id: 1007
+        code: "TASK-1007"
+        title: "E1-L3 Интеграция с системой (Light)"
+        status: "in_progress"
+  
+  - code: "E1-L4"
+    title: "Event Sourcing & Audit Trail"
+    stage: "E1"
+    kind: "L"
+    status: "done"
+    priority: 40
+    description: "Внедрение event sourcing для полной истории изменений"
+    tasks:
+      - id: 1008
+        code: "TASK-1008"
+        title: "E1-L4 Пост-деплой и пост-ребилд"
+        status: "done"
+  
+  - code: "E1-L5"
+    title: "Kurator Verification Framework"
+    stage: "E1"
+    kind: "L"
+    status: "done"
+    priority: 50
+    description: "Создание фреймворка проверок Kurator для валидации кода"
+    tasks:
+      - id: 1009
+        code: "TASK-1009"
+        title: "E1-L5 Стандарты тестирования"
+        status: "done"
+  
+  - code: "E1-L6"
+    title: "Roadmap Truth System"
+    stage: "E1"
+    kind: "L"
+    status: "planned"
+    priority: 60
+    description: "Модуль истины для Roadmap - единый источник правды о задачах"
+    tasks:
+      - id: 1010
+        code: "TASK-1010"
+        title: "E1-L6 FSM управления сетью"
+        status: "planned"
+  
+  - code: "E1-L8"
+    title: "Self-Deploy & Recovery"
+    stage: "E1"
+    kind: "L"
+    status: "in_progress"
+    priority: 80
+    description: "Механизм автоматического деплоя с восстановлением при ошибках"
+    tasks:
+      - id: 1012
+        code: "TASK-1012"
+        title: "E1-L8 Мультимодальность в агентах"
+        status: "in_progress"
+  
+  # ===================================================================
+  # BUILDING BLOCKS (E1-B*)
+  # ===================================================================
+  
+  - code: "E1-B6"
+    title: "Navigator DB Schema"
+    stage: "E1"
+    kind: "B"
+    status: "done"
+    priority: 110
+    description: "Создание схемы Navigator DB для управления задачами"
+    tasks:
+      - id: 1001
+        code: "TASK-1001"
+        title: "E1-B6 Bot v2: сохранение результата"
+        status: "done"
+  
+  - code: "E1-B7"
+    title: "Task History & Verdicts"
+    stage: "E1"
+    kind: "B"
+    status: "done"
+    priority: 120
+    description: "Внедрение истории задач и вердиктов Kurator"
+    tasks:
+      - id: 1002
+        code: "TASK-1002"
+        title: "E1-B7 Bot v3: интеграция Roadmap/Readmap"
+        status: "done"
+  
+  - code: "E1-B8"
+    title: "Patch Manager Integration"
+    stage: "E1"
+    kind: "B"
+    status: "in_progress"
+    priority: 130
+    description: "Интеграция PatchManager с версионированием кода"
+    tasks:
+      - id: 1013
+        code: "TASK-1013"
+        title: "E1-B8 Заполнить Roadmap"
+        status: "in_progress"
+  
+  - code: "E1-B9"
+    title: "System Snapshot Service"
+    stage: "E1"
+    kind: "B"
+    status: "done"
+    priority: 140
+    description: "Сервис создания снапшотов состояния системы"
+    tasks:
+      - id: 1003
+        code: "TASK-1003"
+        title: "E1-B9 PowerShell агенты"
+        status: "done"
+  
+  - code: "E1-B10"
+    title: "Telegram Bot v3 Integration"
+    stage: "E1"
+    kind: "B"
+    status: "planned"
+    priority: 150
+    description: "Интеграция Telegram Bot v3 с Roadmap Module"
+    tasks:
+      - id: 1014
+        code: "TASK-1014"
+        title: "E1-B10 Curator v1→v3 (triage/spec-repair)"
+        status: "planned"
+  
+  - code: "E1-B11"
+    title: "PowerShell Agents (Контур А)"
+    stage: "E1"
+    kind: "B"
+    status: "in_progress"
+    priority: 160
+    description: "Создание PowerShell агентов для управления через CLI"
+    tasks:
+      - id: 1015
+        code: "TASK-1015"
+        title: "E1-B11 Local LLM stack (Ollama + proxy)"
+        status: "in_progress"
+  
+  - code: "E1-B12"
+    title: "API Gateway & Auth"
+    stage: "E1"
+    kind: "B"
+    status: "planned"
+    priority: 170
+    description: "Создание API Gateway с аутентификацией"
+    tasks:
+      - id: 1016
+        code: "TASK-1016"
+        title: "E1-B12 Telegram-оповещения"
+        status: "planned"
+  
+  - code: "E1-B13"
+    title: "System Snapshot & Knowledge Sync"
+    stage: "E1"
+    kind: "B"
+    status: "in_progress"
+    priority: 180
+    description: "Синхронизация знаний системы и создание снапшотов"
+    tasks:
+      - id: 1004
+        code: "TASK-1004"
+        title: "E1-B13 System Snapshot & Knowledge Sync"
+        status: "in_progress"
+  
+  - code: "E1-B14"
+    title: "Self-Deploy & Auto-Recovery Fix"
+    stage: "E1"
+    kind: "B"
+    status: "planned"
+    priority: 190
+    description: "Исправление механизма самодеплоя и автовосстановления"
+  
+  - code: "E1-B15"
+    title: "State Persistence & Volume Setup"
+    stage: "E1"
+    kind: "B"
+    status: "done"
+    priority: 200
+    description: "Настройка постоянного хранения состояния через volumes"
+    tasks:
+      - id: 1017
+        code: "TASK-1017"
+        title: "E1-B15 State Persistence & Volume Setup"
+        status: "planned"
+      - id: 1018
+        code: "TASK-1018"
+        title: "E1-B15 State Persistence & Volume Setup"
+        status: "done"
+
+# =====================================================================
+# END OF CANONICAL ROADMAP
+# =====================================================================
