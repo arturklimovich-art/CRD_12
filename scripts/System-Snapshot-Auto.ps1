@@ -34,3 +34,15 @@ values (
 " | Out-Null
 
 Write-Host "✅ Snapshot registered in database: SYSTEM_PASSPORT_$timestamp"
+
+# 4. Логируем событие в core.events (только имя файла, без полного пути)
+$snapshotFileName = "SYSTEM_PASSPORT_$timestamp.json"
+$eventSQL = @"
+INSERT INTO core.events (source, type, payload)
+VALUES ('system', 'snapshot.done', '{"snapshot_name": "$snapshotFileName", "reason": "$Reason", "location": "memory/snapshots"}'::jsonb);
+"@
+$eventSQL | Out-File -FilePath "$env:TEMP\snapshot_event.sql" -Encoding ASCII -Force
+& "C:\Program Files\PostgreSQL\15\bin\psql.exe" -h 127.0.0.1 -p 5433 -U crd_user -d crd12 -f "$env:TEMP\snapshot_event.sql" | Out-Null
+Remove-Item "$env:TEMP\snapshot_event.sql" -Force
+
+Write-Host "✅ Event logged: snapshot.done"
