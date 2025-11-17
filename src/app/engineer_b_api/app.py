@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Engineer B API", version="4.1 - Self-Healing + Roadmap")
 
+# Roadmap API router
+from routes.roadmap_api import router as roadmap_api_router
+app.include_router(roadmap_api_router)
+
 # Настройка шаблонов и статических файлов
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -31,84 +35,23 @@ async def get_roadmap_html(request: Request):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Получить задачи из базы данных
         cur.execute("""
-            SELECT id, title, status, progress_notes, created_at, updated_at 
-            FROM eng_it.tasks 
-            ORDER BY created_at DESC
+            SELECT id, code, title, status, description, priority, steps, created_at, updated_at, completed_at
+            FROM eng_it.roadmap_tasks
+            ORDER BY priority DESC, code
         """)
+        
         tasks = cur.fetchall()
-        
-        # Форматировать задачи
-        formatted_tasks = []
-        for task in tasks:
-            formatted_tasks.append({
-                "id": task[0],
-                "title": task[1],
-                "status": task[2],
-                "progress_notes": task[3],
-                "created_at": task[4],
-                "updated_at": task[5]
-            })
-        
         cur.close()
         conn.close()
         
         return templates.TemplateResponse("roadmap.html", {
             "request": request,
-            "tasks": formatted_tasks,
-            "total_tasks": len(formatted_tasks)
+            "tasks": tasks
         })
-        
     except Exception as e:
         logger.error(f"Error loading roadmap: {e}")
         return templates.TemplateResponse("error.html", {
             "request": request,
             "error": str(e)
         })
-
-@app.get("/api/roadmap")
-async def get_roadmap_json():
-    """API endpoint для Roadmap"""
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT id, title, status, progress_notes, created_at, updated_at 
-            FROM eng_it.tasks 
-            ORDER BY created_at DESC
-        """)
-        tasks = cur.fetchall()
-        
-        formatted_tasks = []
-        for task in tasks:
-            formatted_tasks.append({
-                "id": task[0],
-                "title": task[1],
-                "status": task[2],
-                "progress_notes": task[3],
-                "created_at": task[4].isoformat() if task[4] else None,
-                "updated_at": task[5].isoformat() if task[5] else None
-            })
-        
-        cur.close()
-        conn.close()
-        
-        return {
-            "status": "success",
-            "tasks": formatted_tasks,
-            "count": len(formatted_tasks)
-        }
-        
-    except Exception as e:
-        logger.error(f"Error in roadmap API: {e}")
-        return {"status": "error", "message": str(e)}
-
-@app.get("/health")
-async def health_check():
-    return {"status": "ok", "service": "Engineer B API"}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
