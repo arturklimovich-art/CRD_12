@@ -5,6 +5,7 @@ import logging
 import json
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from commands.roadmap_navigator import roadmap_navigator_command
 import asyncio # <-- Необходим для асинхронного запуска задач
 import re # <-- Может пригодиться для будущих функций
 
@@ -272,7 +273,8 @@ def register_handlers(app: Application):
     log.debug("📝 Registering handlers")
     app.add_handler(CommandHandler("start", start_cmd))
     app.add_handler(CommandHandler("status", status_cmd))
-    app.add_handler(CommandHandler("list", list_tasks_cmd))  # <-- ДОБАВЛЕНО
+    app.add_handler(CommandHandler("list", list_tasks_cmd))
+    app.add_handler(CommandHandler("roadmap_navigator", roadmap_navigator_command))  # <-- ДОБАВЛЕНО
     # Обрабатываем только TEXT сообщения, которые НЕ являются командами
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_messages))
 

@@ -16,6 +16,7 @@ from typing import Optional
 
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from commands.roadmap_navigator import roadmap_navigator_command
 
 # Добавляем текущую директорию в путь
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -369,6 +370,7 @@ def main():
     application.add_handler(CommandHandler("run_roadmap", run_roadmap_command))
     application.add_handler(CommandHandler("status", status_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("roadmap_navigator", roadmap_navigator_command))
     
     # Обработчик обычных сообщений
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
