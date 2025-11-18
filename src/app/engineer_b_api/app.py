@@ -1,5 +1,5 @@
 ﻿from fastapi import FastAPI, Request
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import psycopg2
@@ -55,3 +55,38 @@ async def get_roadmap_html(request: Request):
             "request": request,
             "error": str(e)
         })
+
+@app.get("/navigator", response_class=HTMLResponse)
+async def navigator_page(request: Request):
+    """Navigator HTML Dashboard - показывает Roadmap визуально"""
+    try:
+        # Получаем данные из API
+        import httpx
+        async with httpx.AsyncClient() as client:
+            roadmap_resp = await client.get("http://localhost:8000/api/roadmap")
+            roadmap_data = roadmap_resp.json()
+            
+            truth_resp = await client.get("http://localhost:8000/api/truth/matrix")
+            truth_data = truth_resp.json()
+        
+        # Подготовка данных для шаблона
+        tasks = roadmap_data.get("tasks", [])
+        total_tasks = roadmap_data.get("total_tasks", 0)
+        
+        # Статистика по статусам
+        stats = {"done": 0, "in_progress": 0, "planned": 0}
+        for task in tasks:
+            status = task.get("status", "unknown")
+            if status in stats:
+                stats[status] += 1
+        
+        return templates.TemplateResponse("navigator.html", {
+            "request": request,
+            "tasks": tasks,
+            "total_tasks": total_tasks,
+            "stats": stats,
+            "truth_status": truth_data.get("status", "unknown"),
+            "truth_timestamp": truth_data.get("timestamp", "N/A")
+        })
+    except Exception as e:
+        return HTMLResponse(content=f"<h1>Error: {str(e)}</h1>", status_code=500)
