@@ -209,3 +209,111 @@ async def get_current_task():
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.get("/navigator/steps/{task_id}")
+async def get_task_steps(task_id: str):
+    """Get steps for a specific task from roadmap_tasks.steps (jsonb)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        try:
+            # Get task with steps from roadmap_tasks via tasks table
+            cursor.execute("""
+                SELECT 
+                    t.id as task_id,
+                    t.title as task_title,
+                    t.status as task_status,
+                    rt.id as roadmap_task_id,
+                    rt.code as roadmap_code,
+                    rt.steps
+                FROM eng_it.tasks t
+                LEFT JOIN eng_it.roadmap_tasks rt ON t.roadmap_task_id = rt.id
+                WHERE t.id = %s
+            """, (task_id,))
+            
+            result = cursor.fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+            
+            result_dict = dict(result)
+            steps = result_dict.get('steps') or []
+            
+            return JSONResponse(content={
+                "status": "ok",
+                "task_id": task_id,
+                "task_title": result_dict['task_title'],
+                "task_status": result_dict['task_status'],
+                "roadmap_task_id": result_dict['roadmap_task_id'],
+                "steps_count": len(steps),
+                "steps": steps
+            })
+            
+        finally:
+            cursor.close()
+            conn.close()
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.get("/navigator/all")
+async def get_all_navigator_steps():
+    """Get all steps from progress_navigator table (detailed execution tracking)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        try:
+            cursor.execute("""
+                SELECT 
+                    id,
+                    task_code,
+                    title,
+                    description,
+                    level,
+                    module,
+                    priority,
+                    status,
+                    estimated_hours,
+                    actual_hours,
+                    created_at,
+                    updated_at
+                FROM eng_it.progress_navigator
+                ORDER BY priority ASC, created_at ASC
+            """)
+            
+            steps = cursor.fetchall()
+            
+            # Convert datetime to ISO format
+            steps_list = []
+            for step in steps:
+                step_dict = dict(step)
+                for key, value in step_dict.items():
+                    if hasattr(value, 'isoformat'):
+                        step_dict[key] = value.isoformat()
+                steps_list.append(step_dict)
+            
+            # Count by status
+            status_counts = {}
+            for step in steps_list:
+                status = step['status']
+                status_counts[status] = status_counts.get(status, 0) + 1
+            
+            return JSONResponse(content={
+                "status": "ok",
+                "total_steps": len(steps_list),
+                "status_counts": status_counts,
+                "steps": steps_list
+            })
+            
+        finally:
+            cursor.close()
+            conn.close()
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
