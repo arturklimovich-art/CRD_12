@@ -1,74 +1,80 @@
-﻿"""
-Bot v2 R7: Roadmap Navigator Command
-Вызывает Navigator JSON API и форматирует ответ для Telegram
+﻿# src/bot/commands/roadmap_navigator.py
 """
+Команда /roadmap-navigator для отображения текущей задачи и её шагов
+Использует новый API /api/current и /api/navigator/steps
+"""
+
 import httpx
-import os
 from telegram import Update
 from telegram.ext import ContextTypes
-
-ENGINEER_B_API_URL = os.getenv("ENGINEER_B_API_URL", "http://engineer_b_api:8000")
+from config import ENGINEER_B_API_URL
 
 async def roadmap_navigator_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /roadmap-navigator - показывает Navigator JSON API данные"""
-    await update.message.reply_text("🔍 Загружаю данные Navigator...")
-    
+    """Команда /roadmap-navigator - показывает текущую задачу и её шаги"""
+    await update.message.reply_text("🧭 Загружаю текущую задачу...")
+
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Запрос к /api/roadmap
-            resp = await client.get(f"{ENGINEER_B_API_URL}/api/roadmap")
+            # Запрос к /api/current - получаем текущую задачу
+            resp = await client.get(f"{ENGINEER_B_API_URL}/api/current")
             if resp.status_code != 200:
-                await update.message.reply_text(f"❌ Ошибка API roadmap: {resp.status_code}")
+                await update.message.reply_text(f"❌ Ошибка API current: {resp.status_code}")
                 return
-            roadmap_data = resp.json()
+            current_data = resp.json()
             
-            # Запрос к /api/truth/matrix
-            resp = await client.get(f"{ENGINEER_B_API_URL}/api/truth/matrix")
-            if resp.status_code != 200:
-                await update.message.reply_text(f"❌ Ошибка API truth/matrix: {resp.status_code}")
+            task = current_data.get("task")
+            if not task:
+                await update.message.reply_text("📭 Нет текущей задачи в работе")
                 return
-            truth_data = resp.json()
-        
+            
+            task_id = task['id']
+            task_title = task['title']
+            task_status = task['status']
+            progress_notes = task.get('progress_notes', 'Нет заметок')
+            
+            # Запрос к /api/navigator/steps/{task_id} - получаем шаги задачи
+            resp = await client.get(f"{ENGINEER_B_API_URL}/api/navigator/steps/{task_id}")
+            if resp.status_code != 200:
+                await update.message.reply_text(f"❌ Ошибка API steps: {resp.status_code}")
+                return
+            steps_data = resp.json()
+            
+            steps = steps_data.get("steps", [])
+            steps_count = steps_data.get("steps_count", 0)
+
         # Форматирование ответа
-        total = roadmap_data.get("total_tasks", 0)
-        tasks = roadmap_data.get("tasks", [])
+        response = f"🧭 *CURRENT TASK*\n\n"
+        response += f"📌 *ID:* `{task_id}`\n"
+        response += f"📋 *Title:* {task_title}\n"
+        response += f"🔧 *Status:* `{task_status}`\n"
+        response += f"📝 *Notes:* {progress_notes[:200]}...\n\n"
         
-        # Статистика по статусам
-        status_counts = {}
-        for task in tasks:
-            status = task.get("status", "unknown")
-            status_counts[status] = status_counts.get(status, 0) + 1
+        response += f"📊 *STEPS: {steps_count}*\n\n"
         
-        # Форматированный текст
-        response = f"📊 Navigator Roadmap Status\n\n"
-        response += f"📦 Всего задач: {total}\n\n"
-        response += f"📈 Статистика:\n"
+        if steps_count > 0:
+            done_count = sum(1 for s in steps if s.get('done') or s.get('status') == 'done')
+            completion = round((done_count / steps_count * 100) if steps_count > 0 else 0, 1)
+            
+            response += f"✅ Done: {done_count}\n"
+            response += f"📈 Progress: {completion}%\n\n"
+            response += f"*Steps List:*\n"
+            
+            for i, step in enumerate(steps[:10], 1):  # Показываем первые 10 шагов
+                status_icon = "✅" if (step.get('done') or step.get('status') == 'done') else "⏳"
+                code = step.get('code', 'N/A')
+                title = step.get('title', 'No title')[:60]
+                response += f"{i}. {status_icon} `{code}` {title}\n"
+            
+            if steps_count > 10:
+                response += f"\n... и ещё {steps_count - 10} шагов\n"
+        else:
+            response += "📭 Шагов нет (steps=[])\n"
         
-        for status, count in sorted(status_counts.items()):
-            emoji = {
-                "planned": "📋",
-                "in_progress": "🔧",
-                "testing": "🧪",
-                "completed": "✅",
-                "blocked": "🚫"
-            }.get(status, "❓")
-            response += f"{emoji} {status}: {count}\n"
+        response += f"\n🔗 [Open Navigator](http://localhost:8031/navigator)"
         
-        response += f"\n🎯 Truth Matrix: {truth_data.get('status', 'unknown')}"
-        response += f"\n⏰ Timestamp: {truth_data.get('timestamp', 'N/A')}"
-        
-        # Топ-3 задачи (по приоритету)
-        top_tasks = sorted(tasks, key=lambda x: x.get("priority", 0), reverse=True)[:3]
-        if top_tasks:
-            response += "\n\n🔝 Топ-3 задачи:\n"
-            for task in top_tasks:
-                code = task.get("code", "?")
-                title = task.get("title", "No title")
-                status = task.get("status", "unknown")
-                title_safe = title[:40].replace("_", "\\_").replace("*", "\\*").replace("`", "\\`")
-                response += f"• {code} {title_safe}... ({status})\n"
-        
-        await update.message.reply_text(response)
-        
+        await update.message.reply_text(response, parse_mode="Markdown", disable_web_page_preview=True)
+
+    except httpx.RequestError as e:
+        await update.message.reply_text(f"❌ Ошибка сети: {str(e)}")
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {str(e)}")
