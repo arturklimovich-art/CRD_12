@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 import psycopg2
 import os
 import logging
+import httpx
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -58,35 +59,53 @@ async def get_roadmap_html(request: Request):
 
 @app.get("/navigator", response_class=HTMLResponse)
 async def navigator_page(request: Request):
-    """Navigator HTML Dashboard - показывает Roadmap визуально"""
+    """Navigator HTML Dashboard - показывает текущую задачу и её шаги"""
     try:
-        # Получаем данные из API
-        import httpx
+        # Получаем текущую задачу
         async with httpx.AsyncClient() as client:
-            roadmap_resp = await client.get("http://localhost:8000/api/roadmap")
-            roadmap_data = roadmap_resp.json()
+            current_resp = await client.get("http://localhost:8000/api/current")
+            current_data = current_resp.json()
             
-            truth_resp = await client.get("http://localhost:8000/api/truth/matrix")
-            truth_data = truth_resp.json()
-        
-        # Подготовка данных для шаблона
-        tasks = roadmap_data.get("tasks", [])
-        total_tasks = roadmap_data.get("total_tasks", 0)
-        
-        # Статистика по статусам
-        stats = {"done": 0, "in_progress": 0, "planned": 0}
-        for task in tasks:
-            status = task.get("status", "unknown")
-            if status in stats:
-                stats[status] += 1
-        
+            current_task = current_data.get("task")
+            if not current_task:
+                return templates.TemplateResponse("navigator.html", {
+                    "request": request,
+                    "error": "No current task found",
+                    "current_task": None,
+                    "steps": [],
+                    "stats": {}
+                })
+            
+            # Получаем шаги текущей задачи
+            task_id = current_task['id']
+            steps_resp = await client.get(f"http://localhost:8000/api/navigator/steps/{task_id}")
+            steps_data = steps_resp.json()
+            
+            steps = steps_data.get("steps", [])
+            steps_count = steps_data.get("steps_count", 0)
+            
+            # Подсчёт статистики шагов
+            stats = {
+                "total": steps_count,
+                "done": sum(1 for s in steps if s.get('done') or s.get('status') == 'done'),
+                "in_progress": sum(1 for s in steps if s.get('status') == 'in_progress'),
+                "planned": sum(1 for s in steps if s.get('status') == 'planned'),
+            }
+            stats["completion"] = round((stats["done"] / stats["total"] * 100) if stats["total"] > 0 else 0, 1)
+            
+            return templates.TemplateResponse("navigator.html", {
+                "request": request,
+                "current_task": current_task,
+                "steps": steps,
+                "stats": stats
+            })
+            
+    except Exception as e:
+        logger.error(f"Error loading navigator: {e}")
         return templates.TemplateResponse("navigator.html", {
             "request": request,
-            "tasks": tasks,
-            "total_tasks": total_tasks,
-            "stats": stats,
-            "truth_status": truth_data.get("status", "unknown"),
-            "truth_timestamp": truth_data.get("timestamp", "N/A")
+            "error": str(e),
+            "current_task": None,
+            "steps": [],
+            "stats": {}
         })
-    except Exception as e:
-        return HTMLResponse(content=f"<h1>Error: {str(e)}</h1>", status_code=500)
