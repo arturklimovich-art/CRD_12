@@ -4,10 +4,22 @@ Roadmap JSON API endpoints for Bot v2 integration
 """
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from datetime import datetime
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
+
+router = APIRouter(prefix="/api", tags=["roadmap"])
+
+def get_db_connection():
+    return psycopg2.connect(
+        host=os.getenv("PGHOST", "crd12_pgvector"),
+        port=int(os.getenv("PGPORT", 5432)),
+        database=os.getenv("PGDATABASE", "crd12"),
+        user=os.getenv("PGUSER", "crd_user"),
+        password=os.getenv("PGPASSWORD", "crd12")
+    )
 
 router = APIRouter(prefix="/api", tags=["roadmap"])
 
@@ -121,5 +133,79 @@ async def get_truth_matrix():
             }
         }
     
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@router.get("/current")
+async def get_current_task():
+    """Get current task from Roadmap (status='in_progress')"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        try:
+            # Get current task (in_progress with highest priority)
+            cursor.execute("""
+                SELECT 
+                    id,
+                    title,
+                    status,
+                    priority,
+                    owner,
+                    created_at,
+                    updated_at,
+                    progress_notes,
+                    roadmap_task_id
+                FROM eng_it.tasks
+                WHERE status = 'in_progress'
+                ORDER BY priority DESC, created_at ASC
+                LIMIT 1
+            """)
+            
+            task = cursor.fetchone()
+            
+            if not task:
+                # If no in_progress, get first planned task
+                cursor.execute("""
+                    SELECT 
+                        id,
+                        title,
+                        status,
+                        priority,
+                        owner,
+                        created_at,
+                        updated_at,
+                        progress_notes,
+                        roadmap_task_id
+                    FROM eng_it.tasks
+                    WHERE status = 'planned'
+                    ORDER BY priority DESC, created_at ASC
+                    LIMIT 1
+                """)
+                task = cursor.fetchone()
+            
+            if not task:
+                return JSONResponse(content={
+                    "status": "error",
+                    "message": "No current or planned tasks found",
+                    "task": None
+                })
+            
+            # Convert datetime objects to strings
+            task_dict = dict(task)
+            for key, value in task_dict.items():
+                if hasattr(value, 'isoformat'):
+                    task_dict[key] = value.isoformat()
+            
+            return JSONResponse(content={
+                "status": "ok",
+                "task": task_dict,
+                "timestamp": "2025-11-19T09:27:40Z"
+            })
+            
+        finally:
+            cursor.close()
+            conn.close()
+            
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
