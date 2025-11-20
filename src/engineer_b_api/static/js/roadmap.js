@@ -1,113 +1,137 @@
-// Roadmap Dashboard JavaScript Module
-const API_BASE = '/api/v1/roadmap';
+﻿// Roadmap Dashboard JavaScript - Fixed Version
+console.log('[Roadmap] Loading dashboard...');
 
-// ????????????? ??? ???????? ????????
+const API_BASE = '/api';
+
+// Load dashboard on page ready
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('[Roadmap] DOM ready, loading dashboard...');
     loadDashboard();
 });
 
-// ???????? ?????? dashboard
+// Main dashboard loader
 async function loadDashboard() {
     try {
-        const response = await fetch(`${API_BASE}/dashboard`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        console.log('[Roadmap] Fetching from', API_BASE + '/roadmap');
+        const response = await fetch(API_BASE + '/roadmap');
         
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+        }
+
         const data = await response.json();
+        console.log('[Roadmap] Data received:', data);
+
+        // Update statistics
+        updateStats(data);
         
-        // ?????????? ?????????? ? header
-        updateHeaderStats(data);
+        // Render tasks
+        renderTasks(data.tasks || []);
         
-        // ??????????? ??????
-        renderBlocks(data.blocks);
+        // Hide error message
+        hideError();
         
-        // ???????? ????????? ?????
-        loadRecentTasks();
-        
+        console.log('[Roadmap] Dashboard loaded successfully');
     } catch (error) {
-        console.error('Error loading dashboard:', error);
-        showError('blocksContainer', 'Failed to load dashboard data');
+        console.error('[Roadmap] Error loading dashboard:', error);
+        showError('Failed to load dashboard: ' + error.message);
     }
 }
 
-// ?????????? ?????????? ? header
-function updateHeaderStats(data) {
-    document.getElementById('totalBlocks').textContent = data.total_blocks || 0;
-    document.getElementById('totalTasks').textContent = data.total_tasks || 0;
-    document.getElementById('totalDone').textContent = data.total_done || 0;
-    document.getElementById('overallCompletion').textContent = 
-        `${data.overall_completion || 0}%`;
-}
-
-// ????????? ??????
-function renderBlocks(blocks) {
-    const container = document.getElementById('blocksContainer');
+// Update header statistics
+function updateStats(data) {
+    const totalTasks = data.total_tasks || 0;
+    const tasks = data.tasks || [];
     
-    if (!blocks || blocks.length === 0) {
-        container.innerHTML = '<div class="loading">No blocks found</div>';
-        return;
-    }
+    const doneTasks = tasks.filter(t => t.status === 'done').length;
+    const inProgressTasks = tasks.filter(t => t.status === 'in_progress').length;
+    const plannedTasks = tasks.filter(t => t.status === 'planned').length;
+    const completionPercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
     
-    container.innerHTML = blocks.map(block => `
-        <div class="block-card">
-            <div class="block-code">${escapeHtml(block.block_code || 'N/A')}</div>
-            <div class="block-title">${escapeHtml(block.block_title || 'Untitled')}</div>
-            <span class="block-status status-${block.block_status || 'planned'}">
-                ${escapeHtml(block.block_status || 'planned')}
-            </span>
-            <div class="block-progress">
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${block.completion_percentage || 0}%"></div>
-                </div>
-                <div class="progress-text">
-                    ${block.tasks_done || 0} / ${block.tasks_total || 0} tasks 
-                    (${block.completion_percentage || 0}%)
-                </div>
-            </div>
-        </div>
-    `).join('');
+    // Update DOM elements (safe)
+    setTextContent('blocks-count', '1'); // E1 stage
+    setTextContent('tasks-count', totalTasks);
+    setTextContent('done-count', doneTasks);
+    setTextContent('in-progress-count', inProgressTasks);
+    setTextContent('planned-count', plannedTasks);
+    setTextContent('progress-percentage', completionPercent + '%');
+    
+    console.log('[Roadmap] Stats updated:', {totalTasks, doneTasks, inProgressTasks, plannedTasks, completionPercent});
 }
 
-// ???????? ????????? ?????
-async function loadRecentTasks() {
-    try {
-        const response = await fetch(`${API_BASE}/tasks?limit=10`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const tasks = await response.json();
-        renderTasks(tasks);
-        
-    } catch (error) {
-        console.error('Error loading tasks:', error);
-        showError('tasksContainer', 'Failed to load tasks');
-    }
-}
-
-// ????????? ?????
+// Render tasks list
 function renderTasks(tasks) {
-    const container = document.getElementById('tasksContainer');
-    
-    if (!tasks || tasks.length === 0) {
-        container.innerHTML = '<div class="loading">No tasks found</div>';
+    const container = document.getElementById('recent-tasks');
+    if (!container) {
+        console.warn('[Roadmap] Element #recent-tasks not found');
         return;
     }
     
-    container.innerHTML = tasks.map(task => `
-        <div class="task-card">
-            <div class="task-code">${escapeHtml(task.code || 'N/A')}</div>
-            <div class="task-title">${escapeHtml(task.title || 'Untitled')}</div>
-        </div>
-    `).join('');
+    if (tasks.length === 0) {
+        container.innerHTML = '<div class=\"alert alert-info\">No tasks found</div>';
+        return;
+    }
+    
+    const html = tasks.map(task => {
+        const statusBadge = getStatusBadge(task.status);
+        const title = escapeHtml(task.title || 'Untitled');
+        const code = escapeHtml(task.code || '');
+        
+        return '<div class=\"card mb-2\">' +
+               '<div class=\"card-body\">' +
+               '<span class=\"badge ' + statusBadge + ' me-2\">' + task.status + '</span>' +
+               '<strong>' + code + '</strong>: ' + title +
+               '</div>' +
+               '</div>';
+    }).join('');
+    
+    container.innerHTML = html;
+    console.log('[Roadmap] Rendered ' + tasks.length + ' tasks');
 }
 
-// ??????????? ??????
-function showError(containerId, message) {
-    const container = document.getElementById(containerId);
-    container.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+// Get Bootstrap badge class for status
+function getStatusBadge(status) {
+    switch(status) {
+        case 'done': return 'bg-success';
+        case 'in_progress': return 'bg-warning';
+        case 'planned': return 'bg-secondary';
+        default: return 'bg-light';
+    }
 }
 
-// ????????????? HTML ??? ????????????
+// Show error message
+function showError(message) {
+    const errorEl = document.getElementById('dashboard-error');
+    if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+    }
+    console.error('[Roadmap] Error shown:', message);
+}
+
+// Hide error message
+function hideError() {
+    const errorEl = document.getElementById('dashboard-error');
+    if (errorEl) {
+        errorEl.style.display = 'none';
+    }
+}
+
+// Safe set text content
+function setTextContent(id, value) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.textContent = value;
+    } else {
+        console.warn('[Roadmap] Element #' + id + ' not found');
+    }
+}
+
+// Escape HTML to prevent XSS
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
+
+console.log('[Roadmap] Script loaded');

@@ -1,0 +1,79 @@
+﻿schema_version: roadmap.v1
+meta:
+  owner: "arturklimovich-art"
+  project: "CRD12"
+  version: "v0.1"
+  principles:
+    - "KISS"
+    - "Append-only"
+    - "Anti-fragile"
+  updated_at: "2025-11-17T17:25:19Z"
+
+stages:
+  - id: "E1"
+    title: "Engineers_IT (база)"
+    description: "Базовая система инженеров: Bot, Engineer_B, Kurator, Navigator, Roadmap Manager"
+    status: "in_progress"
+    tasks:
+      - id: "E1-01"
+        title: "Каркас, Контур A, Bot→Planner"
+        status: "DONE"
+        commit: "placeholder"
+        description: "Базовая структура проекта, контейнеры, БД"
+      
+      - id: "E1-02"
+        title: "GitHub CI + тесты"
+        status: "IN_PROGRESS"
+        description: "Настройка CI/CD, автоматические тесты"
+      
+      - id: "E1-03"
+        title: "Kurator ingest→RAG"
+        status: "PLANNED"
+        description: "Интеграция Kurator с RAG-системой"
+      
+      - id: "E1-B6"
+        title: "Bot v2: Intelligent Planner"
+        status: "IN_PROGRESS"
+        description: "Управление ROADMAP, генерация ТЗ, JOURNAL"
+        roadmap_task_id: 1001
+      
+      - id: "E1-B11"
+        title: "LLM Events Logging"
+        status: "DONE"
+        commit: "6694e62"
+        description: "Логирование событий llm.* в core.events"
+        roadmap_task_id: 1015
+
+  - id: "TL1"
+    title: "TradLab (MVP)"
+    description: "Торговая система (базовая версия)"
+    status: "planned"
+    tasks:
+      - id: "TL1-01"
+        title: "Подключение к брокеру"
+        status: "PLANNED"
+        description: "Интеграция с торговым API"
+
+  - id: "E2"
+    title: "Engineers_IT (расширение)"
+    description: "Расширенная функциональность инженеров"
+    status: "planned"
+    tasks: []
+
+  - id: "TL2"
+    title: "TradLab (расширение)"
+    description: "Расширенная функциональность торговой системы"
+    status: "planned"
+    tasks: []
+
+  - id: "E3"
+    title: "Engineers_IT (финал)"
+    description: "Полная автономная система инженеров"
+    status: "planned"
+    tasks: []
+
+  - id: "TL3"
+    title: "TradLab (финал)"
+    description: "Полная автономная торговая система"
+    status: "planned"
+    tasks: []

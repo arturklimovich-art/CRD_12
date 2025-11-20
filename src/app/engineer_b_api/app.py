@@ -1,16 +1,21 @@
 ﻿from fastapi import FastAPI, Request
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import psycopg2
 import os
 import logging
+import httpx
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Engineer B API", version="4.1 - Self-Healing + Roadmap")
+
+# Roadmap API router
+from routes.roadmap_api import router as roadmap_api_router
+app.include_router(roadmap_api_router)
 
 # Настройка шаблонов и статических файлов
 templates = Jinja2Templates(directory="templates")
@@ -31,35 +36,20 @@ async def get_roadmap_html(request: Request):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Получить задачи из базы данных
         cur.execute("""
-            SELECT id, title, status, progress_notes, created_at, updated_at 
-            FROM eng_it.tasks 
-            ORDER BY created_at DESC
+            SELECT id, code, title, status, description, priority, steps, created_at, updated_at, completed_at
+            FROM eng_it.roadmap_tasks
+            ORDER BY priority DESC, code
         """)
+        
         tasks = cur.fetchall()
-        
-        # Форматировать задачи
-        formatted_tasks = []
-        for task in tasks:
-            formatted_tasks.append({
-                "id": task[0],
-                "title": task[1],
-                "status": task[2],
-                "progress_notes": task[3],
-                "created_at": task[4],
-                "updated_at": task[5]
-            })
-        
         cur.close()
         conn.close()
         
         return templates.TemplateResponse("roadmap.html", {
             "request": request,
-            "tasks": formatted_tasks,
-            "total_tasks": len(formatted_tasks)
+            "tasks": tasks
         })
-        
     except Exception as e:
         logger.error(f"Error loading roadmap: {e}")
         return templates.TemplateResponse("error.html", {
@@ -67,48 +57,55 @@ async def get_roadmap_html(request: Request):
             "error": str(e)
         })
 
-@app.get("/api/roadmap")
-async def get_roadmap_json():
-    """API endpoint для Roadmap"""
+@app.get("/navigator", response_class=HTMLResponse)
+async def navigator_page(request: Request):
+    """Navigator HTML Dashboard - показывает текущую задачу и её шаги"""
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT id, title, status, progress_notes, created_at, updated_at 
-            FROM eng_it.tasks 
-            ORDER BY created_at DESC
-        """)
-        tasks = cur.fetchall()
-        
-        formatted_tasks = []
-        for task in tasks:
-            formatted_tasks.append({
-                "id": task[0],
-                "title": task[1],
-                "status": task[2],
-                "progress_notes": task[3],
-                "created_at": task[4].isoformat() if task[4] else None,
-                "updated_at": task[5].isoformat() if task[5] else None
+        # Получаем текущую задачу
+        async with httpx.AsyncClient() as client:
+            current_resp = await client.get("http://localhost:8000/api/current")
+            current_data = current_resp.json()
+            
+            current_task = current_data.get("task")
+            if not current_task:
+                return templates.TemplateResponse("navigator.html", {
+                    "request": request,
+                    "error": "No current task found",
+                    "current_task": None,
+                    "steps": [],
+                    "stats": {}
+                })
+            
+            # Получаем шаги текущей задачи
+            task_id = current_task['id']
+            steps_resp = await client.get(f"http://localhost:8000/api/navigator/steps/{task_id}")
+            steps_data = steps_resp.json()
+            
+            steps = steps_data.get("steps", [])
+            steps_count = steps_data.get("steps_count", 0)
+            
+            # Подсчёт статистики шагов
+            stats = {
+                "total": steps_count,
+                "done": sum(1 for s in steps if s.get('done') or s.get('status') == 'done'),
+                "in_progress": sum(1 for s in steps if s.get('status') == 'in_progress'),
+                "planned": sum(1 for s in steps if s.get('status') == 'planned'),
+            }
+            stats["completion"] = round((stats["done"] / stats["total"] * 100) if stats["total"] > 0 else 0, 1)
+            
+            return templates.TemplateResponse("navigator.html", {
+                "request": request,
+                "current_task": current_task,
+                "steps": steps,
+                "stats": stats
             })
-        
-        cur.close()
-        conn.close()
-        
-        return {
-            "status": "success",
-            "tasks": formatted_tasks,
-            "count": len(formatted_tasks)
-        }
-        
+            
     except Exception as e:
-        logger.error(f"Error in roadmap API: {e}")
-        return {"status": "error", "message": str(e)}
-
-@app.get("/health")
-async def health_check():
-    return {"status": "ok", "service": "Engineer B API"}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+        logger.error(f"Error loading navigator: {e}")
+        return templates.TemplateResponse("navigator.html", {
+            "request": request,
+            "error": str(e),
+            "current_task": None,
+            "steps": [],
+            "stats": {}
+        })

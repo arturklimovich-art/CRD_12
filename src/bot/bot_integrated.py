@@ -14,8 +14,13 @@ import asyncio
 from datetime import datetime
 from typing import Optional
 
+from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from commands.roadmap_navigator import roadmap_navigator_command
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Добавляем текущую директорию в путь
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -131,7 +136,7 @@ def update_task_status(task_id: str, status: str) -> bool:
             cur.execute("""
                 UPDATE eng_it.tasks 
                 SET status = %s, updated_at = NOW()
-                WHERE id = %s
+                WHERE id = CAST(%s AS text)
             """, (status, task_id))
             conn.commit()
         conn.close()
@@ -173,21 +178,19 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     username = update.effective_user.username or "unknown"
     
-    welcome_text = """
-🤖 **CRD12 Telegram Bot v2.0**
-
-Управление Roadmap и автоматическим деплоем через PatchManager.
-
-📋 **Доступные команды**:
-/add_task <описание> - Добавить задачу в Roadmap
-/run_roadmap - Запустить следующую задачу из Roadmap
-/status - Показать активные задачи
-/help - Справка по командам
-
-✨ Все задачи создаются через PatchManager с версионированием!
-    """
+    welcome_text = (
+        "👋 CRD12 Telegram Bot v2.0\n\n"
+        "Управление Roadmap и автоматической фабрикой кода через PatchManager.\n\n"
+        "📋 Доступные команды:\n"
+        "/add_task <описание> - Добавить задачу в Roadmap\n"
+        "/run_roadmap - Запустить следующую задачу из Roadmap\n"
+        "/status - Показать текущие задачи\n"
+        "/roadmap_navigator - Navigator Dashboard (веб-интерфейс)\n"
+        "/help - Справка по командам\n\n"
+        "✨ Бот поддерживает генерацию кода через PatchManager и автоматическое применение!"
+    )
     
-    await update.message.reply_text(welcome_text, parse_mode="Markdown")
+    await update.message.reply_text(welcome_text)
     save_message_to_db(chat_id, user_id, username, "/start", "command", welcome_text)
 
 
@@ -203,7 +206,7 @@ async def add_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not task_description:
         response = "❌ Укажите описание задачи.\n\nПример:\n`/add_task Создать функцию hello() в agents/hello.py`"
-        await update.message.reply_text(response, parse_mode="Markdown")
+        await update.message.reply_text(response)
         save_message_to_db(chat_id, user_id, username, message_text, "command", response)
         return
     
@@ -214,11 +217,11 @@ async def add_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     success = create_task_in_roadmap(task_id, task_description, chat_id, priority=5)
     
     if success:
-        response = f"✅ **Задача добавлена в Roadmap!**\n\n📝 ID: `{task_id}`\n📄 Описание: {task_description}\n\n🚀 Используйте /run_roadmap для запуска"
+        response = f"✅ Задача добавлена в Roadmap!\n\n📝 ID: `{task_id}`\n📄 Описание: {task_description}\n\n🚀 Используйте /run_roadmap для запуска"
     else:
         response = f"❌ Не удалось создать задачу. Проверьте логи."
     
-    await update.message.reply_text(response, parse_mode="Markdown")
+    await update.message.reply_text(response)
     save_message_to_db(chat_id, user_id, username, message_text, "command", response)
 
 
@@ -233,7 +236,7 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if not task:
         response = "📭 Нет задач в статусе 'planned'.\n\nИспользуйте /add_task для создания новой задачи."
-        await update.message.reply_text(response, parse_mode="Markdown")
+        await update.message.reply_text(response)
         save_message_to_db(chat_id, user_id, username, "/run_roadmap", "command", response)
         return
     
@@ -245,8 +248,7 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     # Отправляем уведомление
     await update.message.reply_text(
-        f"🚀 **Запускаю задачу...**\n\n📝 ID: `{task_id}`\n📄 Описание: {task_title}\n\n⏳ Отправляю в Engineer API...",
-        parse_mode="Markdown"
+        f"🚀 Запускаю задачу...\n\n📝 ID: `{task_id}`\n📄 Описание: {task_title}\n\n⏳ Отправляю в Engineer API..."
     )
     
     # Отправка задачи в Engineer API
@@ -256,32 +258,91 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             "job_id": task_id
         }
         
+        logger.info(f"[ENGINEER_B] Отправка задачи {task_id} в Engineer B API")
         response = requests.post(
             f"{ENGINEER_API_URL}/agent/analyze",
             json=payload,
             timeout=300
         )
         
+        logger.info(f"[ENGINEER_B] Получен ответ: HTTP {response.status_code}")
+        
         if response.status_code == 200:
             result = response.json()
             status = result.get("status", "unknown")
+            logger.info(f"[ENGINEER_B] Статус выполнения: {status}")
             
             if status == "passed":
-                bot_response = f"✅ **Задача выполнена успешно!**\n\n📝 ID: `{task_id}`\n\n🎯 Результат: Код применён через PatchManager"
-                update_task_status(task_id, "done")
+                # Get generated code
+                generated_code = result.get("generated_code", "")
+                logger.info(f"[CURATOR] Длина сгенерированного кода: {len(generated_code)}")
+                
+                # Call Curator API
+                curator_url = os.getenv("CURATOR_API_URL", "")
+                logger.info(f"[CURATOR] CURATOR_API_URL: {curator_url}")
+                logger.info(f"[CURATOR] Проверка условия: curator_url={bool(curator_url)}, generated_code={bool(generated_code)}")
+                
+                if curator_url and generated_code:
+                    logger.info("[CURATOR] Вызов Curator API...")
+                    try:
+                        # Отправка сообщения пользователю
+                        try:
+                            await update.message.reply_text("🔍 Отправляю код на проверку Curator...")
+                        except Exception as msg_error:
+                            logger.warning(f"Не удалось отправить сообщение: {msg_error}")
+                        
+                        curator_payload = {
+                            "task_text": task_title,
+                            "code": generated_code,
+                            "job_id": str(task_id)
+                        }
+                        
+                        logger.info(f"[CURATOR] Отправка запроса на {curator_url}")
+                        curator_response = requests.post(curator_url, json=curator_payload, timeout=60)
+                        logger.info(f"[CURATOR] Получен ответ: HTTP {curator_response.status_code}")
+                        
+                        if curator_response.status_code == 200:
+                            curator_result = curator_response.json()
+                            decision = curator_result.get("decision", "reject")
+                            score = curator_result.get("score", 0)
+                            reasons = curator_result.get("reasons", [])
+                            
+                            if decision == "approve":
+                                logger.info(f"[CURATOR] Код одобрен с оценкой {score}")
+                                bot_response = f"✅ Задача выполнена!\n\n📝 ID: `{task_id}`\n\n🔍 Curator: Одобрено (Оценка: {score})"
+                                update_task_status(task_id, "done")
+                            else:
+                                logger.warning(f"[CURATOR] Код отклонён с оценкой {score}")
+                                reasons_text = "\n".join([f"- {r}" for r in reasons[:3]])
+                                bot_response = f"❌ Код отклонён Curator\n\n📝 ID: `{task_id}`\n\n🔍 Оценка: {score}\n📋 Причины:\n{reasons_text}"
+                                update_task_status(task_id, "failed")
+                        else:
+                            logger.warning(f"[CURATOR] Ошибка API: HTTP {curator_response.status_code}")
+                            bot_response = f"✅ Задача выполнена!\n\n📝 ID: `{task_id}`\n\n⚠️ Curator недоступен"
+                            update_task_status(task_id, "done")
+                    
+                    except Exception as curator_error:
+                        logger.error(f"[CURATOR] Ошибка при вызове Curator API: {curator_error}")
+                        bot_response = f"✅ Задача выполнена!\n\n📝 ID: `{task_id}`\n\n⚠️ Curator недоступен: {str(curator_error)[:100]}"
+                        update_task_status(task_id, "done")
+                else:
+                    # Curator не настроен или нет кода
+                    logger.info("[CURATOR] Curator API не настроен или код не сгенерирован")
+                    bot_response = f"✅ Задача выполнена успешно!\n\n📝 ID: `{task_id}`\n\n🎯 Результат: Код применён через PatchManager"
+                    update_task_status(task_id, "done")
             else:
-                bot_response = f"⚠️ **Задача завершена с предупреждениями**\n\n📝 ID: `{task_id}`\n\n📊 Статус: {status}"
+                bot_response = f"⚠️ Задача завершена с предупреждениями\n\n📝 ID: `{task_id}`\n\n📊 Статус: {status}"
                 update_task_status(task_id, "done")
         else:
-            bot_response = f"❌ **Ошибка выполнения задачи**\n\n📝 ID: `{task_id}`\n\n⚠️ HTTP {response.status_code}: {response.text[:200]}"
+            bot_response = f"❌ Ошибка выполнения задачи\n\n📝 ID: `{task_id}`\n\n⚠️ HTTP {response.status_code}: {response.text[:200]}"
             update_task_status(task_id, "failed")
     
     except Exception as e:
-        bot_response = f"❌ **Ошибка при выполнении**\n\n📝 ID: `{task_id}`\n\n⚠️ {str(e)}"
+        bot_response = f"❌ Ошибка при выполнении\n\n📝 ID: `{task_id}`\n\n⚠️ {str(e)}"
         update_task_status(task_id, "failed")
         logger.error(f"Error executing task {task_id}: {e}")
     
-    await update.message.reply_text(bot_response, parse_mode="Markdown")
+    await update.message.reply_text(bot_response)
     save_message_to_db(chat_id, user_id, username, "/run_roadmap", "command", bot_response)
 
 
@@ -296,43 +357,47 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not tasks:
         response = "📭 Нет активных задач."
     else:
-        response = "📊 **Активные задачи:**\n\n"
+        response = "📊 Активные задачи:\n\n"
         for i, task in enumerate(tasks, 1):
             status_emoji = "🟢" if task["status"] == "in_progress" else "🔵"
             response += f"{i}. {status_emoji} `{task['id']}`\n"
             response += f"   📄 {task['title'][:50]}...\n"
             response += f"   📈 Статус: {task['status']} | Приоритет: {task['priority']}\n\n"
     
-    await update.message.reply_text(response, parse_mode="Markdown")
+    await update.message.reply_text(response)
     save_message_to_db(chat_id, user_id, username, "/status", "command", response)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /help"""
     help_text = """
-📚 **Справка по командам:**
+📚 Справка по командам:
 
-**/add_task <описание>**
+/add_task <описание>
 Добавляет новую задачу в Roadmap со статусом 'planned'.
 Пример: `/add_task Создать API endpoint /api/hello`
 
-**/run_roadmap**
+/run_roadmap
 Запускает следующую задачу из Roadmap (по приоритету и дате).
 Задача отправляется в Engineer API для реализации через PatchManager.
 
-**/status**
+/status
 Показывает список активных задач (planned, in_progress).
 
-**/help**
+  /roadmap_navigator
+  Показывает Navigator Dashboard - статистику задач Roadmap.
+  Отображает Truth Matrix, общее количество задач, статусы и топ-3 задачи.
+
+/help
 Показывает эту справку.
 
-🔗 **Интеграция:**
+🔗 Интеграция:
 Bot → Roadmap (eng_it.tasks) → Engineer API → PatchManager → Деплой
 
 ✨ Все изменения кода версионируются!
     """
     
-    await update.message.reply_text(help_text, parse_mode="Markdown")
+    await update.message.reply_text(help_text)
 
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -369,6 +434,7 @@ def main():
     application.add_handler(CommandHandler("run_roadmap", run_roadmap_command))
     application.add_handler(CommandHandler("status", status_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("roadmap_navigator", roadmap_navigator_command))
     
     # Обработчик обычных сообщений
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
