@@ -1,4 +1,4 @@
-Param(
+﻿Param(
   [string]$BaseUrl = "http://127.0.0.1:4000"
 )
 Write-Host "LLM status probe: $BaseUrl"
@@ -21,7 +21,19 @@ try {
   $sw.Stop()
   $total = $sw.Elapsed.TotalSeconds
   $tokens = $resp.usage.total_tokens
-  Write-Host ("Latency(s)={0:N2}  Tokens={1}  ~tok/s={2:N1}" -f $total, $tokens, ($tokens / [Math]::Max($total,0.01)))
+  $tokPerSec = $tokens / [Math]::Max($total,0.01)
+  Write-Host ("Latency(s)={0:N2}  Tokens={1}  ~tok/s={2:N1}" -f $total, $tokens, $tokPerSec)
+  
+  # Log metrics to core.events
+  $env:PGPASSWORD = "crd12"
+  $eventSQL = @"
+INSERT INTO core.events (source, type, payload)
+VALUES ('llm', 'llm.inference.metrics', '{"latency_sec": $($total.ToString('0.00', [System.Globalization.CultureInfo]::InvariantCulture)), "tokens": $tokens, "tok_per_sec": $($tokPerSec.ToString('0.0', [System.Globalization.CultureInfo]::InvariantCulture)), "model": "qwen2.5:7b-instruct-q4_K_M", "endpoint": "$BaseUrl"}'::jsonb);
+"@
+  $eventSQL | Out-File -FilePath "$env:TEMP\llm_metrics_event.sql" -Encoding ASCII -Force
+  & "C:\Program Files\PostgreSQL\15\bin\psql.exe" -h 127.0.0.1 -p 5433 -U crd_user -d crd12 -f "$env:TEMP\llm_metrics_event.sql" | Out-Null
+  Remove-Item "$env:TEMP\llm_metrics_event.sql" -Force
+  Write-Host "✅ Metrics logged to core.events (llm.inference.metrics)"
 } catch {
   Write-Host "Chat completion failed: $($_.Exception.Message)"
 }

@@ -109,3 +109,15 @@ async def navigator_page(request: Request):
             "steps": [],
             "stats": {}
         })
+
+
+# Health check endpoint for Docker
+    return {status: ok}
+
+# Health check endpoint for Docker
+@app.get("/health")
+
+# Health check endpoint for Docker
+@app.get("/health")
+async def health():
+    return {"status": "ok"}

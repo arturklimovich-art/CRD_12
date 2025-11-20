@@ -1,0 +1,13 @@
+diff --git a/src/bot/bot_integrated.py b/src/bot/bot_integrated.py
+index 1234567..abcdefg 100644
+--- a/src/bot/bot_integrated.py
++++ b/src/bot/bot_integrated.py
+@@ -314,7 +314,7 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYP
+ 
+         if response.status_code == 200:
+             result = response.json()
+-            status = result.get("status", "unknown")
++            status = result.get("engineer_status", "unknown")
+ 
+             if status == "passed":
+                 generated_code = result.get("generated_code", "")

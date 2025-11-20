@@ -1,0 +1,112 @@
+diff --git a/src/bot/bot_integrated.py b/src/bot/bot_integrated.py
+index 1234567..abcdefg 100644
+--- a/src/bot/bot_integrated.py
++++ b/src/bot/bot_integrated.py
+@@ -227,6 +227,58 @@ def get_active_tasks():
+         return []
+ 
+ 
++# ===================================================================
++# CURATOR INTEGRATION - Проверка кода перед применением
++# ===================================================================
++
++async def call_curator_api(task_text: str, code: str, target_path: str = "/app/generated.py"):
++    """
++    Вызывает Curator API для проверки кода
++    
++    Args:
++        task_text: Описание задачи
++        code: Сгенерированный код для проверки
++        target_path: Целевой путь файла
++    
++    Returns:
++        {
++            "decision": "approve" | "reject",
++            "reasons": [...],
++            "score": 0-100,
++            "metrics": {...}
++        }
++    """
++    import aiohttp
++    
++    curator_url = f"{ENGINEER_API_URL}/api/v1/validate"
++    
++    payload = {
++        "task_text": task_text,
++        "code": code,
++        "target_path": target_path
++    }
++    
++    try:
++        logger.info(f"[CURATOR] Отправка кода на проверку: {curator_url}")
++        
++        timeout = aiohttp.ClientTimeout(total=30)
++        async with aiohttp.ClientSession(timeout=timeout) as session:
++            async with session.post(curator_url, json=payload) as response:
++                if response.status == 200:
++                    result = await response.json()
++                    logger.info(f"[CURATOR] Решение: {result.get('decision')} (score: {result.get('score')})")
++                    return result
++                else:
++                    logger.error(f"[CURATOR] HTTP {response.status}: {await response.text()}")
++                    return {"decision": "reject", "reasons": [f"Curator API error: HTTP {response.status}"], "score": 0, "metrics": {}}
++    except Exception as e:
++        logger.error(f"[CURATOR] Ошибка вызова: {e}")
++        return {"decision": "reject", "reasons": [f"Curator API unavailable: {str(e)}"], "score": 0, "metrics": {}}
++
++
+ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+     """Команда /run_roadmap - запускает следующую задачу"""
+     chat_id = update.effective_chat.id
+@@ -289,8 +341,49 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYP
+             status = result.get("engineer_status", "unknown")
+ 
+             if status == "passed":
+-                bot_response = f"✅ Задача выполнена успешно!\n\n📝 ID: `{task_id}`\n\n🎯 Результат: Код применён через PatchManager"
+-                update_task_status(task_id, "done")
++                generated_code = result.get("generated_code", "")
++                
++                if generated_code:
++                    await update.message.reply_text(
++                        f"🔍 Отправляю код на проверку Curator...\n\n📊 Размер кода: {len(generated_code)} символов"
++                    )
++                    
++                    curator_result = await call_curator_api(
++                        task_text=task_title,
++                        code=generated_code,
++                        target_path=f"/app/task_{task_id}.py"
++                    )
++                    
++                    decision = curator_result.get("decision", "reject")
++                    reasons = curator_result.get("reasons", [])
++                    score = curator_result.get("score", 0)
++                    
++                    if decision == "approve":
++                        bot_response = (
++                            f"✅ Задача выполнена успешно!\n\n"
++                            f"📝 ID: `{task_id}`\n"
++                            f"👨‍⚖️ Curator: ОДОБРЕНО ✅\n"
++                            f"📊 Score: {score}/100\n\n"
++                            f"🎯 Результат: Код проверен и готов к применению\n"
++                            f"⚠️ PatchManager: заглушка (код НЕ применён реально)"
++                        )
++                        update_task_status(task_id, "done")
++                        logger.info(f"[TASK {task_id}] Curator APPROVED (score: {score})")
++                    else:
++                        reasons_text = "\n".join([f"  • {r}" for r in reasons])
++                        bot_response = (
++                            f"❌ Curator заблокировал код!\n\n"
++                            f"📝 ID: `{task_id}`\n"
++                            f"👨‍⚖️ Curator: ОТКЛОНЕНО ❌\n"
++                            f"📊 Score: {score}/100\n\n"
++                            f"⚠️ Причины:\n{reasons_text}\n\n"
++                            f"🔧 Задача НЕ выполнена. Требуется исправление кода."
++                        )
++                        update_task_status(task_id, "failed")
++                        logger.warning(f"[TASK {task_id}] Curator REJECTED: {reasons}")
++                else:
++                    bot_response = f"⚠️ Задача завершена, но код не был сгенерирован\n\n📝 ID: `{task_id}`\n📊 Статус: {status}"
++                    update_task_status(task_id, "done")
+             else:
+                 bot_response = f"⚠️ Задача завершена с предупреждениями\n\n📝 ID: `{task_id}`\n\n📊 Статус: {status}"
+                 update_task_status(task_id, "done")

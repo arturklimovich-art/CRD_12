@@ -1,0 +1,9 @@
+﻿docker : ERROR:  column "task_id" does not exist
+At line:1 char:1
++ docker exec crd12_pgvector psql -U crd_user -d crd12 -t -A -F"," -c " ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ERROR:  column "task_id" does not exist:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+LINE 1: SELECT * FROM eng_it.roadmap_tasks WHERE task_id = '1004' OR...
+                                                 ^

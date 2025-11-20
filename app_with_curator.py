@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+﻿from fastapi import FastAPI, Request
 from routes import curator_router
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -9,7 +9,7 @@ import logging
 import httpx
 from datetime import datetime
 
-# ????????? ???????????
+# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -20,14 +20,13 @@ from routes.roadmap_api import router as roadmap_api_router
 from routes.engineer_agent import router as engineer_agent_router
 app.include_router(roadmap_api_router)
 app.include_router(engineer_agent_router)
-app.include_router(curator_router.router, prefix='/curator', tags=['curator'])
 
-# ????????? ???????? ? ??????????? ??????
+# Настройка шаблонов и статических файлов
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 def get_db_connection():
-    """??????????? ? ???? ??????"""
+    """Подключение к базе данных"""
     return psycopg2.connect(os.getenv("DATABASE_URL", "postgres://crd_user:crd12@crd12_pgvector:5432/crd12"))
 
 
@@ -38,7 +37,7 @@ async def root():
 
 @app.get("/roadmap")
 async def get_roadmap_html(request: Request):
-    """??????? ???????? Roadmap"""
+    """Главная страница Roadmap"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -67,9 +66,9 @@ async def get_roadmap_html(request: Request):
 
 @app.get("/navigator", response_class=HTMLResponse)
 async def navigator_page(request: Request):
-    """Navigator HTML Dashboard - ?????????? ??????? ?????? ? ?? ????"""
+    """Navigator HTML Dashboard - показывает текущую задачу и её шаги"""
     try:
-        # ???????? ??????? ??????
+        # Получаем текущую задачу
         async with httpx.AsyncClient() as client:
             current_resp = await client.get("http://localhost:8000/api/current")
             current_data = current_resp.json()
@@ -84,7 +83,7 @@ async def navigator_page(request: Request):
                     "stats": {}
                 })
             
-            # ???????? ???? ??????? ??????
+            # Получаем шаги текущей задачи
             task_id = current_task['id']
             steps_resp = await client.get(f"http://localhost:8000/api/navigator/steps/{task_id}")
             steps_data = steps_resp.json()
@@ -92,7 +91,7 @@ async def navigator_page(request: Request):
             steps = steps_data.get("steps", [])
             steps_count = steps_data.get("steps_count", 0)
             
-            # ??????? ?????????? ?????
+            # Подсчёт статистики шагов
             stats = {
                 "total": steps_count,
                 "done": sum(1 for s in steps if s.get('done') or s.get('status') == 'done'),
@@ -132,13 +131,13 @@ async def navigator_page(request: Request):
 async def health():
     return {"status": "ok"}
 
-# System Context API ??? ??????? (Bot, Engineer_B, Curator)
+# System Context API для агентов (Bot, Engineer_B, Curator)
 
 @app.get("/api/system/context")
 async def get_system_context():
     """
-    ?????????? ???????? ??????? ??? ???????.
-    ???????????? Bot, Engineer_B ? Curator ??? ????????? ???????????.
+    Возвращает контекст системы для агентов.
+    Используется Bot, Engineer_B и Curator для понимания архитектуры.
     """
     return {
         "version": "1.0.0",
@@ -151,25 +150,25 @@ async def get_system_context():
             "schemas": ["eng_it", "core"],
             "tables": {
                 "eng_it.roadmap_tasks": {
-                    "description": "???????? ?????? Roadmap (25 ?????)",
+                    "description": "Основные задачи Roadmap (25 задач)",
                     "columns": ["id", "code", "title", "description", "status", "priority", "assigned_to", "labels", "created_at", "updated_at", "completed_at"],
                     "statuses": ["planned", "in_progress", "done", "cancelled"],
                     "primary_key": "id",
                     "unique_key": "code"
                 },
                 "eng_it.progress_navigator": {
-                    "description": "????????? ???? ?????????? ????? (74 ????)",
+                    "description": "Детальные шаги выполнения задач (74 шага)",
                     "columns": ["id", "task_code", "title", "description", "level", "module", "priority", "status", "estimated_hours", "actual_hours", "created_at", "updated_at"],
                     "statuses": ["passed", "failed", "in_progress"],
                     "levels": ["B", "S", "L"]
                 },
                 "core.events": {
-                    "description": "??????????? ???? ??????? ???????",
+                    "description": "Логирование всех событий системы",
                     "columns": ["id", "event_type", "entity_type", "entity_id", "data", "created_at"],
                     "event_types": ["task_started", "task_completed", "tz_generated", "status_updated", "code_generated", "curator_approved"]
                 },
                 "eng_it.tasks": {
-                    "description": "????? ? roadmap_tasks ? ?????????????? ????????",
+                    "description": "Связь с roadmap_tasks и дополнительные атрибуты",
                     "columns": ["id", "roadmap_task_id", "title", "description", "status", "created_at", "updated_at"]
                 }
             }
@@ -179,17 +178,17 @@ async def get_system_context():
             "external_url": "http://localhost:8001",
             "endpoints": {
                 "roadmap": {
-                    "GET /api/roadmap": "???????? ??? ?????? Roadmap",
-                    "GET /api/current": "???????? ??????? ?????? (in_progress ? min priority)",
-                    "GET /api/roadmap/{task_id}": "???????? ?????? ?? ID"
+                    "GET /api/roadmap": "Получить все задачи Roadmap",
+                    "GET /api/current": "Получить текущую задачу (in_progress с min priority)",
+                    "GET /api/roadmap/{task_id}": "Получить задачу по ID"
                 },
                 "navigator": {
-                    "GET /api/navigator/steps/{task_id}": "???????? ???? ?????????? ??????",
-                    "GET /api/navigator/all": "???????? ??? 74 ???? Navigator"
+                    "GET /api/navigator/steps/{task_id}": "Получить шаги конкретной задачи",
+                    "GET /api/navigator/all": "Получить все 74 шага Navigator"
                 },
                 "system": {
                     "GET /health": "Health check",
-                    "GET /api/system/context": "???? endpoint - ???????? ???????"
+                    "GET /api/system/context": "Этот endpoint - контекст системы"
                 }
             }
         },
@@ -228,31 +227,31 @@ async def get_system_context():
         },
         "workflow": {
             "self_building": {
-                "description": "?????????????? ???? ?????????? ?????",
+                "description": "Автоматический путь выполнения задач",
                 "steps": [
-                    "1. get_next_self_building_task() ?? progress_navigator",
-                    "2. Bot (ChatGPT) ?????????? ??",
-                    "3. Engineer_B ?????????? ???",
-                    "4. Curator (Gemini) ????????? ? ????????",
-                    "5. Patch ???????????",
-                    "6. ?????? ? done"
+                    "1. get_next_self_building_task() из progress_navigator",
+                    "2. Bot (ChatGPT) генерирует ТЗ",
+                    "3. Engineer_B генерирует код",
+                    "4. Curator (Gemini) проверяет и одобряет",
+                    "5. Patch применяется",
+                    "6. Статус → done"
                 ]
             },
             "manual": {
-                "description": "?????? ???? ? ??????????",
+                "description": "Ручной путь с проверками",
                 "steps": [
-                    "1. ??????? ????? ?????? ?? roadmap",
-                    "2. ??????? ????? patch",
-                    "3. Patch ???????? ?? ?? ????????",
-                    "4. Curator ????????",
-                    "5. ?????? ? done"
+                    "1. Человек берет задачу из roadmap",
+                    "2. Человек пишет patch",
+                    "3. Patch проходит те же проверки",
+                    "4. Curator одобряет",
+                    "5. Статус → done"
                 ]
             }
         },
         "env_variables": {
             "DATABASE_URL": "postgresql://crd_user:crd_password@pgvector:5432/crd12",
             "ENGINEER_B_API_URL": "http://engineer_b_api:8000",
-            "CURATOR_API_URL": "http://curator:8080 (??? ????????)",
+            "CURATOR_API_URL": "http://curator:8080 (или заглушка)",
             "TELEGRAM_BOT_TOKEN": "set in .env",
             "OPENAI_API_KEY": "set in .env"
         }
