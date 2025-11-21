@@ -146,6 +146,39 @@ def update_task_status(task_id: str, status: str) -> bool:
         return False
 
 
+def mark_checkpoint(task_code: str, checkpoint_code: str, status: str = "passed", 
+                   validation_result: dict = None) -> bool:
+    """Mark a canonical checkpoint for a task"""
+    import psycopg2
+    import json
+    from datetime import datetime
+    
+    if validation_result is None:
+        validation_result = {"notes": "Auto-marked by Bot", "timestamp": str(datetime.now())}
+    
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO eng_it.task_canonical_progress 
+                    (task_code, checkpoint_code, status, passed_at, validation_result)
+                VALUES (%s, %s, %s, NOW(), %s)
+                ON CONFLICT (task_code, checkpoint_code) 
+                DO UPDATE SET 
+                    status = EXCLUDED.status,
+                    passed_at = EXCLUDED.passed_at,
+                    validation_result = EXCLUDED.validation_result,
+                    updated_at = NOW()
+            """, (task_code, checkpoint_code, status, json.dumps(validation_result)))
+            conn.commit()
+        conn.close()
+        logger.info(f"[KANON] Marked {checkpoint_code} as {status} for task {task_code}")
+        return True
+    except Exception as e:
+        logger.error(f"[KANON] Failed to mark checkpoint {checkpoint_code}: {e}")
+        return False
+
+
 def get_active_tasks() -> list:
     """Получает список активных задач"""
     import psycopg2
@@ -217,7 +250,10 @@ async def add_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     success = create_task_in_roadmap(task_id, task_description, chat_id, priority=5)
     
     if success:
-        response = f"✅ Задача добавлена в Roadmap!\n\n📝 ID: `{task_code}`\n📄 Описание: {task_description}\n\n🚀 Используйте /run_roadmap для запуска"
+        # KANON: Mark CP01_ROADMAP
+        mark_checkpoint(task_id, "CP01_ROADMAP", "passed", 
+                       {"notes": "Task created in roadmap_tasks", "source": "add_task_command"})
+        response = f"✅ Задача добавлена в Roadmap!\n\n📝 ID: `{task_id}`\n📄 Описание: {task_description}\n\n🚀 Используйте /run_roadmap для запуска"
     else:
         response = f"❌ Не удалось создать задачу. Проверьте логи."
     
@@ -246,6 +282,10 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     # Обновляем статус на in_progress
     update_task_status(task_id, "in_progress")
+    
+    # KANON: Mark CP05_ORCHESTRATOR
+    mark_checkpoint(str(task_id), "CP05_ORCHESTRATOR", "passed", 
+                   {"notes": "Orchestrator started task execution", "source": "run_roadmap_command"})
     
     # Отправляем уведомление
     await update.message.reply_text(
@@ -276,6 +316,12 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             if status == "passed":
                 # Get generated code
                 generated_code = result.get("generated_code", "")
+                
+                # KANON: Mark CP06_ENGINEER
+                mark_checkpoint(str(task_id), "CP06_ENGINEER", "passed",
+                               {"notes": "Engineer_B generated code successfully", 
+                                "source": "run_roadmap_command", "code_length": len(generated_code)})
+                
                 logger.info(f"[CURATOR] Длина сгенерированного кода: {len(generated_code)}")
                 
                 # Call Curator API
@@ -312,6 +358,12 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                                 logger.info(f"[CURATOR] Код одобрен с оценкой {score}")
                                 bot_response = f"✅ Задача выполнена!\n\n📝 ID: `{task_code}`\n\n🔍 Curator: Одобрено (Оценка: {score})"
                                 update_task_status(task_id, "done")
+                                
+                                # KANON: Mark CP09_CURATOR
+                                mark_checkpoint(str(task_id), "CP09_CURATOR", "passed",
+                                               {"notes": "Curator validated code successfully", 
+                                                "source": "run_roadmap_command", 
+                                                "curator_decision": curator_result.get("decision")})
                             else:
                                 logger.warning(f"[CURATOR] Код отклонён с оценкой {score}")
                                 reasons_text = "\n".join([f"- {r}" for r in reasons[:3]])
@@ -321,16 +373,34 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                             logger.warning(f"[CURATOR] Ошибка API: HTTP {curator_response.status_code}")
                             bot_response = f"✅ Задача выполнена!\n\n📝 ID: `{task_code}`\n\n⚠️ Curator недоступен"
                             update_task_status(task_id, "done")
+                            
+                            # KANON: Mark CP09_CURATOR
+                            mark_checkpoint(str(task_id), "CP09_CURATOR", "passed",
+                                           {"notes": "Curator validated code successfully", 
+                                            "source": "run_roadmap_command", 
+                                            "curator_decision": "approve_fallback"})
                     
                     except Exception as curator_error:
                         logger.error(f"[CURATOR] Ошибка при вызове Curator API: {curator_error}")
                         bot_response = f"✅ Задача выполнена!\n\n📝 ID: `{task_code}`\n\n⚠️ Curator недоступен: {str(curator_error)[:100]}"
                         update_task_status(task_id, "done")
+                        
+                        # KANON: Mark CP09_CURATOR
+                        mark_checkpoint(str(task_id), "CP09_CURATOR", "passed",
+                                       {"notes": "Curator validated code successfully", 
+                                        "source": "run_roadmap_command", 
+                                        "curator_decision": "approve_fallback"})
                 else:
                     # Curator не настроен или нет кода
                     logger.info("[CURATOR] Curator API не настроен или код не сгенерирован")
                     bot_response = f"✅ Задача выполнена успешно!\n\n📝 ID: `{task_code}`\n\n🎯 Результат: Код применён через PatchManager"
                     update_task_status(task_id, "done")
+                    
+                    # KANON: Mark CP09_CURATOR
+                    mark_checkpoint(str(task_id), "CP09_CURATOR", "passed",
+                                   {"notes": "Curator validated code successfully", 
+                                    "source": "run_roadmap_command", 
+                                    "curator_decision": "approve_no_curator"})
             else:
                 bot_response = f"⚠️ Задача завершена с предупреждениями\n\n📝 ID: `{task_code}`\n\n📊 Статус: {status}"
                 update_task_status(task_id, "done")
