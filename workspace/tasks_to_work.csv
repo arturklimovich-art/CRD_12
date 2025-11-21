@@ -1,0 +1,10 @@
+﻿1004,E1-B13 System Snapshot & Knowledge Sync,in_progress,manual,2025-11-05 10:36:37.050138+01
+1015,E1-B11 Local LLM stack (Ollama + proxy),in_progress,manual,2025-11-05 10:48:16.235385+01
+1010,E1-L6 FSM Engine Core,planned,manual,2025-11-05 10:48:16.235385+01
+1012,E1-L8 Observability & Monitoring,in_progress,manual,2025-11-05 10:48:16.235385+01
+1013,E1-B8 Generate Roadmap,in_progress,manual,2025-11-05 10:48:16.235385+01
+1014,E1-B10 Curator v1-v3 (triage/spec-repair/policy),planned,manual,2025-11-05 10:48:16.235385+01
+1016,E1-B12 Telegram Integration (Notifications),planned,manual,2025-11-05 10:48:16.235385+01
+1007,E1-L3 Events & States (Light),in_progress,manual,2025-11-05 10:48:16.235385+01
+E1-B14,Self-Deploy & Auto-Recovery Fix (S1-FIX-SELF-DEPLOY),planned,manual,2025-11-07 10:12:42.984969+01
+1017,E1-B15 State Persistence & Volume Setup,planned,manual,2025-11-10 12:03:28.727839+01

@@ -358,6 +358,30 @@ class TaskManager:
     # ===================================================================
 
     @staticmethod
+    @staticmethod
+    async def _get_system_context() -> Optional[Dict[str, Any]]:
+        """
+        Получает System Context из Engineer B API.
+        Возвращает контекст или None если недоступен.
+        """
+        context_url = f"{ENGINEER_B_API_URL.rstrip('/')}/api/system/context"
+        
+        try:
+            log.info(f"[CONTEXT] Получаю System Context из {context_url}")
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(context_url) as response:
+                    if response.status == 200:
+                        context = await response.json()
+                        log.info("[CONTEXT] ✅ System Context получен успешно")
+                        return context
+                    else:
+                        log.warning(f"[CONTEXT] ⚠️ Status {response.status}")
+                        return None
+        except Exception as e:
+            log.warning(f"[CONTEXT] ⚠️ Ошибка: {e}")
+            return None
+
     async def _call_engineer_b_api(task_description: str) -> Dict[str, Any]:
         """
          POST  Engineer B API    .

@@ -1,0 +1,52 @@
+﻿import os
+import requests
+
+# ... (внутри функции run_roadmap_command, после получения response)
+
+            if status == "passed":
+                # Get generated code
+                generated_code = result.get("generated_code", "")
+                
+                # Call Curator API
+                curator_url = os.getenv("CURATOR_API_URL", "")
+                
+                if curator_url and generated_code:
+                    try:
+                        await update.message.reply_text("Sending code to Curator for review...")
+                        
+                        curator_payload = {
+                            "task_text": task_title,
+                            "code": generated_code,
+                            "job_id": str(task_id)
+                        }
+                        
+                        curator_response = requests.post(
+                            curator_url,
+                            json=curator_payload,
+                            timeout=60
+                        )
+                        
+                        if curator_response.status_code == 200:
+                            curator_result = curator_response.json()
+                            decision = curator_result.get("decision", "reject")
+                            score = curator_result.get("score", 0)
+                            reasons = curator_result.get("reasons", [])
+                            
+                            if decision == "approve":
+                                bot_response = f"Task completed successfully!\n\nID: {task_id}\n\nResult: Code applied via PatchManager\nCurator: Approved (Score: {score})"
+                                update_task_status(task_id, "done")
+                            else:
+                                reasons_text = "\n".join([f"- {r}" for r in reasons[:3]])
+                                bot_response = f"Code rejected by Curator\n\nID: {task_id}\n\nScore: {score}\nReasons:\n{reasons_text}"
+                                update_task_status(task_id, "failed")
+                        else:
+                            logger.warning(f"Curator API error {curator_response.status_code}")
+                            bot_response = f"Task completed!\n\nID: {task_id}\n\nResult: Code applied (Curator unavailable)"
+                            update_task_status(task_id, "done")
+                    except Exception as curator_error:
+                        logger.error(f"Curator call failed: {curator_error}")
+                        bot_response = f"Task completed!\n\nID: {task_id}\n\nResult: Code applied (Curator unavailable)"
+                        update_task_status(task_id, "done")
+                else:
+                    bot_response = f"Task completed successfully!\n\nID: {task_id}\n\nResult: Code applied via PatchManager"
+                    update_task_status(task_id, "done")

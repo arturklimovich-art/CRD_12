@@ -1,11 +1,11 @@
 ﻿{
-    "timestamp":  "2025-11-05 13:23:11",
+    "timestamp":  "2025-11-17 17:06:14",
     "docker_containers":  [
-                              "crd12_ollama | Up 47 hours | 127.0.0.1:11434-\u003e11434/tcp",
-                              "crd12_events_service | Up 7 days (unhealthy) | 0.0.0.0:8031-\u003e8031/tcp, [::]:8031-\u003e8031/tcp",
-                              "crd12_deepseek_proxy | Up 7 days (healthy) | 0.0.0.0:8010-\u003e8010/tcp, [::]:8010-\u003e8010/tcp",
-                              "crd12_engineer_b_api | Up 6 days (healthy) | 0.0.0.0:8030-\u003e8030/tcp, [::]:8030-\u003e8030/tcp, 0.0.0.0:9108-\u003e9108/tcp, [::]:9108-\u003e9108/tcp, 0.0.0.0:8001-\u003e8000/tcp, [::]:8001-\u003e8000/tcp",
-                              "crd12_pgvector | Up 9 days (healthy) | 0.0.0.0:5433-\u003e5432/tcp, [::]:5433-\u003e5432/tcp"
+                              "crd12_improved_roadmap | Up 3 days | 0.0.0.0:8001-\u003e8000/tcp, [::]:8001-\u003e8000/tcp",
+                              "crd12_bot | Up 5 days | ",
+                              "crd12_deepseek_proxy | Up 5 days | 0.0.0.0:8010-\u003e8010/tcp, [::]:8010-\u003e8010/tcp",
+                              "crd12_pgvector | Up 5 days (healthy) | 0.0.0.0:5433-\u003e5432/tcp, [::]:5433-\u003e5432/tcp",
+                              "crd12_ollama | Up 5 days | 127.0.0.1:11434-\u003e11434/tcp"
                           ],
     "project_paths":  [
                           "C:\\Users\\Artur\\Documents\\CRD12\\ADR",
@@ -14,6 +14,7 @@
                           "C:\\Users\\Artur\\Documents\\CRD12\\backups",
                           "C:\\Users\\Artur\\Documents\\CRD12\\config",
                           "C:\\Users\\Artur\\Documents\\CRD12\\DB",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\docker_volumes",
                           "C:\\Users\\Artur\\Documents\\CRD12\\docs",
                           "C:\\Users\\Artur\\Documents\\CRD12\\engb_app_snapshot_20251027_154311",
                           "C:\\Users\\Artur\\Documents\\CRD12\\memory",
@@ -27,6 +28,8 @@
                           "C:\\Users\\Artur\\Documents\\CRD12\\SPEC",
                           "C:\\Users\\Artur\\Documents\\CRD12\\src",
                           "C:\\Users\\Artur\\Documents\\CRD12\\tests",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\test_patches",
+                          "C:\\Users\\Artur\\Documents\\CRD12\\tmp",
                           "C:\\Users\\Artur\\Documents\\CRD12\\workspace"
                       ],
     "roadmap_version":  "GENERAL_PLAN_2025-11-05.md"

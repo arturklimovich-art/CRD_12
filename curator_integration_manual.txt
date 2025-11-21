@@ -1,0 +1,74 @@
+﻿# Добавьте это в начало файла после импортов (строка ~10)
+
+from dotenv import load_dotenv
+
+# После всех импортов добавьте (строка ~20)
+load_dotenv()
+
+# В функции update_task_status(), замените SQL запрос (строка ~35):
+# БЫЛО:
+#     WHERE id = %s
+# СТАЛО:
+WHERE id = CAST(%s AS text)
+
+# В функции run_roadmap_command(), после строки "status = result.get("engineer_status", "unknown")"
+# Добавьте (строка ~272):
+
+logger.info(f"[ENGINEER_B] Response status: {status}")
+logger.info(f"[ENGINEER_B] Result keys: {list(result.keys())}")
+
+if status == "passed":
+    # Get generated code
+    generated_code = result.get("generated_code", "")
+    logger.info(f"[CURATOR] Generated code length: {len(generated_code)}")
+    
+    # Call Curator API
+    curator_url = os.getenv("CURATOR_API_URL", "")
+    logger.info(f"[CURATOR] CURATOR_API_URL: {curator_url}")
+    
+    if curator_url and generated_code:
+        logger.info("[CURATOR] Calling Curator API...")
+        try:
+            # Send message to user
+            try:
+                update.message.reply_text("🔍 Отправляю код на проверку Curator...")
+            except Exception as msg_error:
+                logger.warning(f"Could not send message: {msg_error}")
+            
+            curator_payload = {
+                "task_text": task_title,
+                "code": generated_code,
+                "job_id": str(task_id)
+            }
+            
+            logger.info(f"[CURATOR] Sending request to {curator_url}")
+            curator_response = requests.post(curator_url, json=curator_payload, timeout=60)
+            logger.info(f"[CURATOR] Response: HTTP {curator_response.status_code}")
+            
+            if curator_response.status_code == 200:
+                curator_result = curator_response.json()
+                decision = curator_result.get("decision", "reject")
+                score = curator_result.get("score", 0)
+                reasons = curator_result.get("reasons", [])
+                
+                if decision == "approve":
+                    logger.info(f"[CURATOR] Code approved with score {score}")
+                    bot_response = f"✅ Задача выполнена!\n\n📝 ID: {task_id}\n\n🔍 Curator: Одобрено (Оценка: {score})"
+                    update_task_status(task_id, "done")
+                else:
+                    logger.warning(f"[CURATOR] Code rejected with score {score}")
+                    reasons_text = "\n".join([f"- {r}" for r in reasons[:3]])
+                    bot_response = f"❌ Код отклонён Curator\n\n📝 ID: {task_id}\n\n🔍 Оценка: {score}\n📋 Причины:\n{reasons_text}"
+                    update_task_status(task_id, "failed")
+            else:
+                logger.warning(f"[CURATOR] API error: HTTP {curator_response.status_code}")
+                bot_response = f"✅ Задача выполнена!\n\n📝 ID: {task_id}\n\n⚠️ Curator недоступен"
+                update_task_status(task_id, "done")
+        except Exception as curator_error:
+            logger.error(f"[CURATOR] Exception: {curator_error}")
+            bot_response = f"✅ Задача выполнена!\n\n📝 ID: {task_id}\n\n⚠️ Curator error"
+            update_task_status(task_id, "done")
+    else:
+        logger.warning("[CURATOR] Skipped: URL or code missing")
+        bot_response = f"✅ Задача выполнена!\n\n📝 ID: {task_id}"
+        update_task_status(task_id, "done")
