@@ -372,7 +372,7 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                         
                         # Extract target_path_hint from Engineer_B response
                         report = result.get("report", {})
-                        target_path = report.get("target_path_hint")
+                        target_path = report.get("target_path_hint") if isinstance(report, dict) else None
                         
                         # Log target_path for debugging
                         if target_path:
