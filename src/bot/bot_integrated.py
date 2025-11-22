@@ -97,9 +97,11 @@ def create_task_in_roadmap(task_code: str, title: str, chat_id: int, priority: i
                 return True  # Task already exists
             
             # Insert into roadmap_tasks using code (TEXT) - use random high ID to avoid conflicts
-            # IDs starting from 100000 are reserved for telegram-created tasks
+            # IDs in range 100000-9999999 are reserved for telegram-created tasks
             import random
-            next_id = 100000 + random.randint(0, 9000000)
+            TELEGRAM_ID_MIN = 100000
+            TELEGRAM_ID_MAX = 9999999
+            next_id = random.randint(TELEGRAM_ID_MIN, TELEGRAM_ID_MAX)
             
             # Retry logic in case of ID collision (very unlikely)
             max_retries = 3
@@ -117,7 +119,7 @@ def create_task_in_roadmap(task_code: str, title: str, chat_id: int, priority: i
                 except psycopg2.IntegrityError:
                     if attempt < max_retries - 1:
                         conn.rollback()
-                        next_id = 100000 + random.randint(0, 9000000)
+                        next_id = random.randint(TELEGRAM_ID_MIN, TELEGRAM_ID_MAX)
                     else:
                         raise
         conn.close()
@@ -157,12 +159,13 @@ def update_task_status(task_identifier, status: str) -> bool:
         conn = psycopg2.connect(DATABASE_URL)
         with conn.cursor() as cur:
             # Try to update by code first (TEXT), then by id (BIGINT)
-            # Use -1 as fallback for non-integer values (cannot exist as valid ID)
+            # Use -1 as fallback for non-integer values (safe: negative IDs don't exist in roadmap_tasks)
+            fallback_id = -1 if not isinstance(task_identifier, int) else task_identifier
             cur.execute("""
                 UPDATE eng_it.roadmap_tasks
                 SET status = %s, updated_at = NOW()
                 WHERE code = %s OR id = %s
-            """, (status, str(task_identifier), task_identifier if isinstance(task_identifier, int) else -1))
+            """, (status, str(task_identifier), fallback_id))
             conn.commit()
         conn.close()
         return True
