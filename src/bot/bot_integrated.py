@@ -96,19 +96,32 @@ def create_task_in_roadmap(task_code: str, title: str, chat_id: int, priority: i
                 conn.close()
                 return True  # Task already exists
             
-            # Insert into roadmap_tasks using code (TEXT) - need to generate id
-            cur.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM eng_it.roadmap_tasks")
-            next_id = cur.fetchone()[0]
+            # Insert into roadmap_tasks using code (TEXT) - use random high ID to avoid conflicts
+            # IDs starting from 100000 are reserved for telegram-created tasks
+            import random
+            next_id = 100000 + random.randint(0, 9000000)
             
-            cur.execute("""
-                INSERT INTO eng_it.roadmap_tasks (id, code, title, status, priority, description)
-                VALUES (%s, %s, %s, 'planned', %s, %s)
-                RETURNING id, code
-            """, (next_id, task_code, title, priority, f"Created from Telegram chat_id: {chat_id}"))
-            result = cur.fetchone()
-            conn.commit()
+            # Retry logic in case of ID collision (very unlikely)
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    cur.execute("""
+                        INSERT INTO eng_it.roadmap_tasks (id, code, title, status, priority, description)
+                        VALUES (%s, %s, %s, 'planned', %s, %s)
+                        RETURNING id, code
+                    """, (next_id, task_code, title, priority, f"Created from Telegram chat_id: {chat_id}"))
+                    result = cur.fetchone()
+                    conn.commit()
+                    conn.close()
+                    return result is not None
+                except psycopg2.IntegrityError:
+                    if attempt < max_retries - 1:
+                        conn.rollback()
+                        next_id = 100000 + random.randint(0, 9000000)
+                    else:
+                        raise
         conn.close()
-        return result is not None
+        return False
     except Exception as e:
         logger.error(f"Failed to create task in roadmap: {e}")
         return False
@@ -144,11 +157,12 @@ def update_task_status(task_identifier, status: str) -> bool:
         conn = psycopg2.connect(DATABASE_URL)
         with conn.cursor() as cur:
             # Try to update by code first (TEXT), then by id (BIGINT)
+            # Use -1 as fallback for non-integer values (cannot exist as valid ID)
             cur.execute("""
                 UPDATE eng_it.roadmap_tasks
                 SET status = %s, updated_at = NOW()
                 WHERE code = %s OR id = %s
-            """, (status, str(task_identifier), task_identifier if isinstance(task_identifier, int) else 0))
+            """, (status, str(task_identifier), task_identifier if isinstance(task_identifier, int) else -1))
             conn.commit()
         conn.close()
         return True
@@ -198,8 +212,8 @@ def get_active_tasks() -> list:
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT id, title, status, priority, created_at
-                FROM eng_it.tasks
+                SELECT id, code, title, status, priority, created_at
+                FROM eng_it.roadmap_tasks
                 WHERE status IN ('planned', 'in_progress')
                 ORDER BY priority DESC, created_at ASC
                 LIMIT 10
@@ -442,7 +456,8 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = "📊 Активные задачи:\n\n"
         for i, task in enumerate(tasks, 1):
             status_emoji = "🟢" if task["status"] == "in_progress" else "🔵"
-            response += f"{i}. {status_emoji} `{task['id']}`\n"
+            task_code = task.get('code', task.get('id', 'N/A'))
+            response += f"{i}. {status_emoji} `{task_code}`\n"
             response += f"   📄 {task['title'][:50]}...\n"
             response += f"   📈 Статус: {task['status']} | Приоритет: {task['priority']}\n\n"
     
