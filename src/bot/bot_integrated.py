@@ -401,6 +401,14 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                                 reasons_text = "\n".join([f"- {r}" for r in reasons[:3]])
                                 bot_response = f"❌ Код отклонён Curator\n\n📝 ID: `{task_code}`\n\n🔍 Оценка: {score}\n📋 Причины:\n{reasons_text}"
                                 update_task_status(task["code"], "failed")
+                                
+                                # KANON: Mark CP09_CURATOR even when rejected
+                                mark_checkpoint(task["code"], "CP09_CURATOR", "passed",
+                                               {"notes": "Curator validation completed (rejected)",
+                                                "source": "run_roadmap_command",
+                                                "curator_decision": curator_result.get("decision"),
+                                                "curator_score": score,
+                                                "rejection_reasons": reasons[:3]})
                         else:
                             logger.warning(f"[CURATOR] Ошибка API: HTTP {curator_response.status_code}")
                             bot_response = f"✅ Задача выполнена!\n\n📝 ID: `{task_code}`\n\n⚠️ Curator недоступен"
