@@ -47,6 +47,12 @@ logger = logging.getLogger("bot_integrated")
 ENGINEER_API_URL = os.getenv("ENGINEER_B_API_URL", "http://engineer_b_api:8000")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgres://crd_user:crd12@pgvector:5432/crd12")
 
+# ID generation constants for telegram-created tasks
+TELEGRAM_ID_MIN = 100000
+TELEGRAM_ID_MAX = 9999999
+MAX_ID_RETRIES = 3
+INVALID_TASK_ID = -1  # Fallback ID that cannot exist in roadmap_tasks
+
 
 # ============================================================================
 # ФУНКЦИИ ДЛЯ РАБОТЫ С БД
@@ -87,25 +93,22 @@ def get_bot_context(key: str) -> Optional[dict]:
 def create_task_in_roadmap(task_code: str, title: str, chat_id: int, priority: int = 0) -> bool:
     """Создаёт задачу в Roadmap (eng_it.roadmap_tasks)"""
     import psycopg2
+    import random
+    
+    conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
         with conn.cursor() as cur:
             # Check if task already exists
             cur.execute("SELECT id FROM eng_it.roadmap_tasks WHERE code = %s", (task_code,))
             if cur.fetchone():
-                conn.close()
                 return True  # Task already exists
             
             # Insert into roadmap_tasks using code (TEXT) - use random high ID to avoid conflicts
-            # IDs in range 100000-9999999 are reserved for telegram-created tasks
-            import random
-            TELEGRAM_ID_MIN = 100000
-            TELEGRAM_ID_MAX = 9999999
             next_id = random.randint(TELEGRAM_ID_MIN, TELEGRAM_ID_MAX)
             
             # Retry logic in case of ID collision (very unlikely)
-            max_retries = 3
-            for attempt in range(max_retries):
+            for attempt in range(MAX_ID_RETRIES):
                 try:
                     cur.execute("""
                         INSERT INTO eng_it.roadmap_tasks (id, code, title, status, priority, description)
@@ -114,19 +117,20 @@ def create_task_in_roadmap(task_code: str, title: str, chat_id: int, priority: i
                     """, (next_id, task_code, title, priority, f"Created from Telegram chat_id: {chat_id}"))
                     result = cur.fetchone()
                     conn.commit()
-                    conn.close()
                     return result is not None
                 except psycopg2.IntegrityError:
-                    if attempt < max_retries - 1:
+                    if attempt < MAX_ID_RETRIES - 1:
                         conn.rollback()
                         next_id = random.randint(TELEGRAM_ID_MIN, TELEGRAM_ID_MAX)
                     else:
                         raise
-        conn.close()
         return False
     except Exception as e:
         logger.error(f"Failed to create task in roadmap: {e}")
         return False
+    finally:
+        if conn:
+            conn.close()
 
 
 def get_next_planned_task() -> Optional[dict]:
@@ -159,8 +163,8 @@ def update_task_status(task_identifier, status: str) -> bool:
         conn = psycopg2.connect(DATABASE_URL)
         with conn.cursor() as cur:
             # Try to update by code first (TEXT), then by id (BIGINT)
-            # Use -1 as fallback for non-integer values (safe: negative IDs don't exist in roadmap_tasks)
-            fallback_id = -1 if not isinstance(task_identifier, int) else task_identifier
+            # Use INVALID_TASK_ID as fallback for non-integer values (safe: negative IDs don't exist)
+            fallback_id = INVALID_TASK_ID if not isinstance(task_identifier, int) else task_identifier
             cur.execute("""
                 UPDATE eng_it.roadmap_tasks
                 SET status = %s, updated_at = NOW()
