@@ -370,9 +370,20 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                         except Exception as msg_error:
                             logger.warning(f"Не удалось отправить сообщение: {msg_error}")
                         
+                        # Extract target_path_hint from Engineer_B response
+                        report = result.get("report", {})
+                        target_path = report.get("target_path_hint")
+                        
+                        # Log target_path for debugging
+                        if target_path:
+                            logger.info(f"[CURATOR] Extracted target_path: {target_path}")
+                        else:
+                            logger.warning(f"[CURATOR] No target_path_hint in Engineer_B response")
+                        
                         curator_payload = {
                             "task_text": task_title,
                             "code": generated_code,
+                            "target_path": target_path,  # ✅ ADDED: Pass target_path to Curator
                             "job_id": str(task_id)
                         }
                         
