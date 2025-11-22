@@ -84,24 +84,33 @@ def get_bot_context(key: str) -> Optional[dict]:
         return None
 
 
-def create_task_in_roadmap(task_id: str, title: str, chat_id: int, priority: int = 0) -> bool:
-    """Создаёт задачу в Roadmap (eng_it.tasks)"""
+def create_task_in_roadmap(task_code: str, title: str, chat_id: int, priority: int = 0) -> bool:
+    """Создаёт задачу в Roadmap (eng_it.roadmap_tasks)"""
     import psycopg2
     try:
         conn = psycopg2.connect(DATABASE_URL)
         with conn.cursor() as cur:
+            # Check if task already exists
+            cur.execute("SELECT id FROM eng_it.roadmap_tasks WHERE code = %s", (task_code,))
+            if cur.fetchone():
+                conn.close()
+                return True  # Task already exists
+            
+            # Insert into roadmap_tasks using code (TEXT) - need to generate id
+            cur.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM eng_it.roadmap_tasks")
+            next_id = cur.fetchone()[0]
+            
             cur.execute("""
-                INSERT INTO eng_it.tasks (id, title, status, created_by, telegram_chat_id, priority)
-                VALUES (%s, %s, 'planned', 'telegram_bot', %s, %s)
-                ON CONFLICT (id) DO NOTHING
-                RETURNING id
-            """, (task_id, title, chat_id, priority))
+                INSERT INTO eng_it.roadmap_tasks (id, code, title, status, priority, description)
+                VALUES (%s, %s, %s, 'planned', %s, %s)
+                RETURNING id, code
+            """, (next_id, task_code, title, priority, f"Created from Telegram chat_id: {chat_id}"))
             result = cur.fetchone()
             conn.commit()
         conn.close()
         return result is not None
     except Exception as e:
-        logger.error(f"Failed to create task: {e}")
+        logger.error(f"Failed to create task in roadmap: {e}")
         return False
 
 
@@ -127,17 +136,19 @@ def get_next_planned_task() -> Optional[dict]:
         return None
 
 
-def update_task_status(task_id: str, status: str) -> bool:
-    """Обновляет статус задачи"""
+def update_task_status(task_identifier, status: str) -> bool:
+    """Обновить статус задачи (принимает id или code)"""
     import psycopg2
+
     try:
         conn = psycopg2.connect(DATABASE_URL)
         with conn.cursor() as cur:
+            # Try to update by code first (TEXT), then by id (BIGINT)
             cur.execute("""
-                UPDATE eng_it.tasks 
+                UPDATE eng_it.roadmap_tasks
                 SET status = %s, updated_at = NOW()
-                WHERE id = %s
-            """, (status, task_id))
+                WHERE code = %s OR id = %s
+            """, (status, str(task_identifier), task_identifier if isinstance(task_identifier, int) else 0))
             conn.commit()
         conn.close()
         return True
@@ -281,10 +292,10 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     task_code = task.get("code", "N/A")  # Added: code column
     
     # Обновляем статус на in_progress
-    update_task_status(task_id, "in_progress")
+    update_task_status(task["code"], "in_progress")
     
     # KANON: Mark CP05_ORCHESTRATOR
-    mark_checkpoint(str(task_id), "CP05_ORCHESTRATOR", "passed", 
+    mark_checkpoint(task["code"], "CP05_ORCHESTRATOR", "passed", 
                    {"notes": "Orchestrator started task execution", "source": "run_roadmap_command"})
     
     # Отправляем уведомление
@@ -318,7 +329,7 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                 generated_code = result.get("generated_code", "")
                 
                 # KANON: Mark CP06_ENGINEER
-                mark_checkpoint(str(task_id), "CP06_ENGINEER", "passed",
+                mark_checkpoint(task["code"], "CP06_ENGINEER", "passed",
                                {"notes": "Engineer_B generated code successfully", 
                                 "source": "run_roadmap_command", "code_length": len(generated_code)})
                 
@@ -357,10 +368,10 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                             if decision == "approve":
                                 logger.info(f"[CURATOR] Код одобрен с оценкой {score}")
                                 bot_response = f"✅ Задача выполнена!\n\n📝 ID: `{task_code}`\n\n🔍 Curator: Одобрено (Оценка: {score})"
-                                update_task_status(task_id, "done")
+                                update_task_status(task["code"], "done")
                                 
                                 # KANON: Mark CP09_CURATOR
-                                mark_checkpoint(str(task_id), "CP09_CURATOR", "passed",
+                                mark_checkpoint(task["code"], "CP09_CURATOR", "passed",
                                                {"notes": "Curator validated code successfully", 
                                                 "source": "run_roadmap_command", 
                                                 "curator_decision": curator_result.get("decision")})
@@ -368,14 +379,14 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                                 logger.warning(f"[CURATOR] Код отклонён с оценкой {score}")
                                 reasons_text = "\n".join([f"- {r}" for r in reasons[:3]])
                                 bot_response = f"❌ Код отклонён Curator\n\n📝 ID: `{task_code}`\n\n🔍 Оценка: {score}\n📋 Причины:\n{reasons_text}"
-                                update_task_status(task_id, "failed")
+                                update_task_status(task["code"], "failed")
                         else:
                             logger.warning(f"[CURATOR] Ошибка API: HTTP {curator_response.status_code}")
                             bot_response = f"✅ Задача выполнена!\n\n📝 ID: `{task_code}`\n\n⚠️ Curator недоступен"
-                            update_task_status(task_id, "done")
+                            update_task_status(task["code"], "done")
                             
                             # KANON: Mark CP09_CURATOR
-                            mark_checkpoint(str(task_id), "CP09_CURATOR", "passed",
+                            mark_checkpoint(task["code"], "CP09_CURATOR", "passed",
                                            {"notes": "Curator validated code successfully", 
                                             "source": "run_roadmap_command", 
                                             "curator_decision": "approve_fallback"})
@@ -383,10 +394,10 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                     except Exception as curator_error:
                         logger.error(f"[CURATOR] Ошибка при вызове Curator API: {curator_error}")
                         bot_response = f"✅ Задача выполнена!\n\n📝 ID: `{task_code}`\n\n⚠️ Curator недоступен: {str(curator_error)[:100]}"
-                        update_task_status(task_id, "done")
+                        update_task_status(task["code"], "done")
                         
                         # KANON: Mark CP09_CURATOR
-                        mark_checkpoint(str(task_id), "CP09_CURATOR", "passed",
+                        mark_checkpoint(task["code"], "CP09_CURATOR", "passed",
                                        {"notes": "Curator validated code successfully", 
                                         "source": "run_roadmap_command", 
                                         "curator_decision": "approve_fallback"})
@@ -394,23 +405,23 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                     # Curator не настроен или нет кода
                     logger.info("[CURATOR] Curator API не настроен или код не сгенерирован")
                     bot_response = f"✅ Задача выполнена успешно!\n\n📝 ID: `{task_code}`\n\n🎯 Результат: Код применён через PatchManager"
-                    update_task_status(task_id, "done")
+                    update_task_status(task["code"], "done")
                     
                     # KANON: Mark CP09_CURATOR
-                    mark_checkpoint(str(task_id), "CP09_CURATOR", "passed",
+                    mark_checkpoint(task["code"], "CP09_CURATOR", "passed",
                                    {"notes": "Curator validated code successfully", 
                                     "source": "run_roadmap_command", 
                                     "curator_decision": "approve_no_curator"})
             else:
                 bot_response = f"⚠️ Задача завершена с предупреждениями\n\n📝 ID: `{task_code}`\n\n📊 Статус: {status}"
-                update_task_status(task_id, "done")
+                update_task_status(task["code"], "done")
         else:
             bot_response = f"❌ Ошибка выполнения задачи\n\n📝 ID: `{task_code}`\n\n⚠️ HTTP {response.status_code}: {response.text[:200]}"
-            update_task_status(task_id, "failed")
+            update_task_status(task["code"], "failed")
     
     except Exception as e:
         bot_response = f"❌ Ошибка при выполнении\n\n📝 ID: `{task_code}`\n\n⚠️ {str(e)}"
-        update_task_status(task_id, "failed")
+        update_task_status(task["code"], "failed")
         logger.error(f"Error executing task {task_code}: {e}")
     
     await update.message.reply_text(bot_response)
