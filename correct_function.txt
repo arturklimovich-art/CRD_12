@@ -1,0 +1,26 @@
+﻿def update_task_status(task_id, status: str) -> bool:
+    """Обновить статус задачи"""
+    import psycopg2
+    
+    # Приводим task_id к int для PostgreSQL bigint
+    if isinstance(task_id, str):
+        try:
+            task_id = int(task_id)
+        except ValueError:
+            logger.error(f"Cannot convert task_id to int: {task_id}")
+            return False
+    
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE eng_it.roadmap_tasks
+                SET status = %s, updated_at = NOW()
+                WHERE id = %s
+            """, (status, task_id))
+            conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to update task status: {e}")
+        return False

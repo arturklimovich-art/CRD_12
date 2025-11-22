@@ -55,3 +55,25 @@ datasets/
 snapshots/
 Archive/
 archive/
+# Temporary debugging scripts (created during development)
+add_*.py
+apply_*.py
+correct_*.py
+extract_*.py
+fix_*.py
+generate*.py
+get_*.py
+improve_*.py
+mark_checkpoint*.py
+mark_checkpoint*.sql
+precise_*.py
+run_roadmap_function.txt
+set_*.py
+test_request.json
+validate_function.sql
+canonical_functions.sql
+engineer_*.json
+canon_*.txt
+
+# Backup files
+*.backup_*
