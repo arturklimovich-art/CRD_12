@@ -1,0 +1,13 @@
+﻿project:
+  name: CRD12
+  owner: arturklimovich-art
+  branch: feature/roadmap-arturklimovich-20251117
+current_state:
+  blocks: 26
+  tasks: 63
+  steps: 14
+  completed: [E1-B0-T1, E1-B0-T2, E1-B0-T3, E1-B0-T4, TL-QuickStart]
+sources:
+  database: postgresql://localhost:5432/crd12
+  roadmap: ROADMAP/DOMAINS/
+
