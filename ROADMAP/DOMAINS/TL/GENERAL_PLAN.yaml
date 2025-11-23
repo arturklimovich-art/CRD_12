@@ -40,6 +40,50 @@ goal:
 # БЛОКИ ЭТАПА L1
 # ============================================================================
 blocks:
+  - id: B0
+    title: "Модуль Источника Истины (SoT)"
+    description: "Федеративная система управления roadmap через YAML ↔ PostgreSQL"
+    status: in_progress
+    priority: critical
+    owner: arturklimovich-art
+    started_at: "2025-11-23T17:24:00Z"
+    
+    tasks:
+      - id: E2-TL-B0-T1
+        title: "Quick Start: Smoke-тест TradLab"
+        status: completed
+        owner: arturklimovich-art
+        priority: high
+        started_at: "2025-11-23T17:27:41Z"
+        completed_at: "2025-11-23T17:28:29Z"
+        artifacts:
+          - src/tradlab/__init__.py
+          - src/tradlab/smoke_test.py
+      
+      - id: E2-TL-B0-T2
+        title: "Quick Start: Минимальный бэктест"
+        status: completed
+        owner: arturklimovich-art
+        priority: high
+        started_at: "2025-11-23T17:28:29Z"
+        completed_at: "2025-11-23T17:29:56Z"
+        artifacts:
+          - src/tradlab/demo_data.py
+          - src/tradlab/simple_strategy.py
+          - src/tradlab/backtest.py
+        results:
+          initial_capital: 10000.0
+          final_capital: 3670.4
+          total_pnl: -6329.6
+          total_trades: 4
+          win_rate: 50.0
+      
+      - id: E2-TL-B0-T3
+        title: "Интеграция TradLab с SoT (синхронизация roadmap)"
+        status: in_progress
+        owner: arturklimovich-art
+        priority: high
+        started_at: "2025-11-23T17:32:21Z"
   - id: "B0"
     code: "E1-B0"
     title: "Модуль Источника Истины (SoT) для TradLab"
