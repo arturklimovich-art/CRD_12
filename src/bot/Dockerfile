@@ -7,7 +7,7 @@ WORKDIR /app
 
 # === УСТАНОВКА СИСТЕМНЫХ ЗАВИСИМОСТЕЙ ===
 # Устанавливаем C-библиотеки, необходимые для 'asyncpg' и 'psycopg2-binary'
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y \ git
     build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
