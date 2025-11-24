@@ -1,0 +1,10 @@
+[
+  {
+    "issue": "YAMLSyncEngine не синхронизирует шаги для блоков B1-B8",
+    "status": "workaround_applied",
+    "workaround": "Ручная вставка шагов через SQL скрипты (insert_steps_b0.sql, insert_steps_b1_b8.sql)",
+    "discovered_at": "2025-11-24T11:50:00Z",
+    "affected_components": ["YAMLSyncEngine", "roadmap_steps"],
+    "severity": "medium"
+  }
+]
