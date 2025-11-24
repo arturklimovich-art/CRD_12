@@ -7,6 +7,7 @@ Backtester v1 для TradLab
 
 import pandas as pd
 import psycopg2
+import psycopg2.extras
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 import uuid
