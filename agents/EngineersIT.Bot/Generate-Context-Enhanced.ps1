@@ -60,7 +60,7 @@ JOIN eng_it.roadmap_blocks rb ON rt.block_id = rb.id
 WHERE rb.domain_code = 'TL';
 "@
 
-$statsResult = $statsQuery | docker exec -i crd12_pgvector psql -h localhost -p 5432 -U $DBUser -d $DBName -t -A -F'|'
+$statsResult = $statsQuery | docker exec -i crd12_pgvector psql -h localhost -p $DBPort -U $DBUser -d $DBName -t -A -F'|'
 
 # Парсинг статистики
 $blocks = 0
@@ -89,7 +89,7 @@ GROUP BY rb.code, rb.title, rb.status
 ORDER BY rb.code;
 "@
 
-$blocksResult = $blocksQuery | docker exec -i crd12_pgvector psql -h localhost -p 5432 -U $DBUser -d $DBName -t -A -F'|'
+$blocksResult = $blocksQuery | docker exec -i crd12_pgvector psql -h localhost -p $DBPort -U $DBUser -d $DBName -t -A -F'|'
 
 # Парсинг блоков
 $blocksDetail = @()
@@ -122,7 +122,7 @@ WHERE rb.domain_code = 'TL' AND rt.status = 'done'
 ORDER BY rt.updated_at DESC LIMIT 10;
 "@
 
-$changesResult = $changesQuery | docker exec -i crd12_pgvector psql -h localhost -p 5432 -U $DBUser -d $DBName -t -A -F'|'
+$changesResult = $changesQuery | docker exec -i crd12_pgvector psql -h localhost -p $DBPort -U $DBUser -d $DBName -t -A -F'|'
 
 # Парсинг изменений
 $recentChanges = @()
@@ -147,7 +147,7 @@ WHERE rb.domain_code = 'TL' AND rt.status = 'planned'
 ORDER BY rt.priority ASC, rt.created_at ASC LIMIT 5;
 "@
 
-$nextTasksResult = $nextTasksQuery | docker exec -i crd12_pgvector psql -h localhost -p 5432 -U $DBUser -d $DBName -t -A -F'|'
+$nextTasksResult = $nextTasksQuery | docker exec -i crd12_pgvector psql -h localhost -p $DBPort -U $DBUser -d $DBName -t -A -F'|'
 
 # Парсинг следующих задач
 $nextSteps = @()

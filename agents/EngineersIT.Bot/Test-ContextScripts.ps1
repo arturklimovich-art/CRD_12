@@ -48,8 +48,14 @@ $allSyntaxValid = $true
 foreach ($script in $psScripts) {
     $scriptPath = Join-Path $PSScriptRoot $script
     try {
-        $null = [System.Management.Automation.PSParser]::Tokenize((Get-Content $scriptPath -Raw), [ref]$null)
-        Write-Host "  ✓ $script syntax valid" -ForegroundColor Green
+        $errors = $null
+        $null = [System.Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$null, [ref]$errors)
+        if ($errors.Count -eq 0) {
+            Write-Host "  ✓ $script syntax valid" -ForegroundColor Green
+        } else {
+            Write-Host "  ✗ $script syntax error: $($errors[0].Message)" -ForegroundColor Red
+            $allSyntaxValid = $false
+        }
     } catch {
         Write-Host "  ✗ $script syntax error: $_" -ForegroundColor Red
         $allSyntaxValid = $false
