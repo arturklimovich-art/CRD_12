@@ -37,8 +37,6 @@ class FeatureAdapterV1:
         Returns:
             DataFrame с фичами
         """
-        conn = psycopg2.connect(self.db_url)
-        
         query = """
         SELECT 
             symbol,
@@ -65,8 +63,8 @@ class FeatureAdapterV1:
         
         query += " ORDER BY ts_4h ASC"
         
-        df = pd.read_sql(query, conn, params=params)
-        conn.close()
+        with psycopg2.connect(self.db_url) as conn:
+            df = pd.read_sql(query, conn, params=params)
         
         return df
     
