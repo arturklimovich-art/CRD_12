@@ -236,11 +236,14 @@ class OHLCVCollector:
             self.logger.error("DataFrame пустой")
             return False
 
-        # Проверка на NaN значения
-        if df.isnull().any().any():
-            null_counts = df.isnull().sum()
-            self.logger.warning(f"Найдены NaN значения:\n{null_counts}")
-            # Не фейлим, но логируем
+        # Проверка на NaN значения в критических колонках
+        critical_columns = ['open', 'high', 'low', 'close', 'volume']
+        if df[critical_columns].isnull().any().any():
+            null_counts = df[critical_columns].isnull().sum()
+            self.logger.error(
+                f"Найдены NaN значения в критических колонках:\n{null_counts}"
+            )
+            return False
 
         # Проверка на дубликаты по timestamp
         duplicates = df[df.duplicated(subset=['ts'], keep=False)]
@@ -279,7 +282,7 @@ class OHLCVCollector:
             return False
 
         # Проверка на отрицательные значения
-        if (df[['open', 'high', 'low', 'close', 'volume']] < 0).any().any():
+        if (df[critical_columns] < 0).any().any():
             self.logger.error("Найдены отрицательные значения")
             return False
 
