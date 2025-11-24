@@ -23,6 +23,11 @@ class OHLCVCollector:
         logger: Logger instance
     """
 
+    # Class constants
+    FETCH_LIMIT = 1000  # Максимум записей за один запрос к API
+    RATE_LIMIT_DELAY = 0.1  # Задержка между запросами (секунды)
+    DEFAULT_SOURCE = 'binance'  # Источник данных
+
     def __init__(self, db_url: str):
         """
         Инициализация collector.
@@ -91,7 +96,6 @@ class OHLCVCollector:
         since_ms = int(since.timestamp() * 1000)
 
         all_ohlcv = []
-        limit = 1000  # Максимум за один запрос
 
         while True:
             try:
@@ -100,7 +104,7 @@ class OHLCVCollector:
                     symbol,
                     timeframe=timeframe,
                     since=since_ms,
-                    limit=limit
+                    limit=self.FETCH_LIMIT
                 )
 
                 if not ohlcv:
@@ -122,10 +126,10 @@ class OHLCVCollector:
                 )
 
                 # Rate limiting - пауза между запросами
-                time.sleep(0.1)
+                time.sleep(self.RATE_LIMIT_DELAY)
 
                 # Если получили меньше limit, значит дошли до конца
-                if len(ohlcv) < limit:
+                if len(ohlcv) < self.FETCH_LIMIT:
                     break
 
             except Exception as e:
@@ -175,43 +179,41 @@ class OHLCVCollector:
         symbol_db = symbol.replace('/', '')
 
         try:
-            conn = psycopg2.connect(self.db_url)
-            cursor = conn.cursor()
+            # Используем context manager для автоматического закрытия соединения
+            with psycopg2.connect(self.db_url) as conn:
+                with conn.cursor() as cursor:
+                    # Подготавливаем данные для bulk insert
+                    records = []
+                    for _, row in df.iterrows():
+                        records.append((
+                            symbol_db,
+                            timeframe,
+                            row['ts'],
+                            float(row['open']),
+                            float(row['high']),
+                            float(row['low']),
+                            float(row['close']),
+                            float(row['volume']),
+                            self.DEFAULT_SOURCE
+                        ))
 
-            # Подготавливаем данные для bulk insert
-            records = []
-            for _, row in df.iterrows():
-                records.append((
-                    symbol_db,
-                    timeframe,
-                    row['ts'],
-                    float(row['open']),
-                    float(row['high']),
-                    float(row['low']),
-                    float(row['close']),
-                    float(row['volume']),
-                    'binance'
-                ))
+                    # Bulk insert с ON CONFLICT DO NOTHING
+                    insert_query = """
+                        INSERT INTO market.ohlcv
+                        (symbol, tf, ts, open, high, low, close, volume, source)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (symbol, tf, ts) DO NOTHING
+                    """
 
-            # Bulk insert с ON CONFLICT DO NOTHING
-            insert_query = """
-                INSERT INTO market.ohlcv
-                (symbol, tf, ts, open, high, low, close, volume, source)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (symbol, tf, ts) DO NOTHING
-            """
+                    cursor.executemany(insert_query, records)
+                    conn.commit()
 
-            cursor.executemany(insert_query, records)
-            conn.commit()
-
-            inserted_count = cursor.rowcount
-            self.logger.info(
-                f"Сохранено {inserted_count} новых записей "
-                f"(дубликаты пропущены)"
-            )
-
-            cursor.close()
-            conn.close()
+                    # Note: rowcount may not be accurate with ON CONFLICT
+                    inserted_count = cursor.rowcount
+                    self.logger.info(
+                        f"Обработано {inserted_count} записей "
+                        f"(дубликаты автоматически пропущены)"
+                    )
 
         except Exception as e:
             self.logger.error(f"Ошибка при сохранении в БД: {e}")
