@@ -114,10 +114,9 @@ class OHLCVCollector:
 
                 # Проверяем, есть ли ещё данные
                 last_timestamp = ohlcv[-1][0]
-                if last_timestamp <= since_ms:
-                    break
 
-                # Обновляем стартовую точку
+                # Обновляем стартовую точку для следующей итерации
+                # Используем +1 чтобы не получить ту же свечу снова
                 since_ms = last_timestamp + 1
 
                 self.logger.info(
@@ -183,19 +182,21 @@ class OHLCVCollector:
             with psycopg2.connect(self.db_url) as conn:
                 with conn.cursor() as cursor:
                     # Подготавливаем данные для bulk insert
-                    records = []
-                    for _, row in df.iterrows():
-                        records.append((
+                    # Используем to_records() для лучшей производительности
+                    records = [
+                        (
                             symbol_db,
                             timeframe,
-                            row['ts'],
-                            float(row['open']),
-                            float(row['high']),
-                            float(row['low']),
-                            float(row['close']),
-                            float(row['volume']),
+                            row.ts,
+                            float(row.open),
+                            float(row.high),
+                            float(row.low),
+                            float(row.close),
+                            float(row.volume),
                             self.DEFAULT_SOURCE
-                        ))
+                        )
+                        for row in df.itertuples(index=False)
+                    ]
 
                     # Bulk insert с ON CONFLICT DO NOTHING
                     insert_query = """
