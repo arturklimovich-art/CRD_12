@@ -160,8 +160,8 @@ docker compose -f docker-compose.tradlab.yml down -v
 # Using psql inside container
 docker exec -it tradlab_postgres psql -U tradlab -d tradlab_db
 
-# Using external psql
-psql postgresql://tradlab:tradlab_secret_2024@localhost:5432/tradlab_db
+# Using external psql (replace YOUR_PASSWORD_HERE with actual password)
+psql postgresql://tradlab:YOUR_PASSWORD_HERE@localhost:5432/tradlab_db
 ```
 
 ---

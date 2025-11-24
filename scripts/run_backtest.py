@@ -7,6 +7,7 @@ Usage: python scripts/run_backtest.py --start 2024-01-01 --end 2024-12-31
 """
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -17,6 +18,11 @@ from dotenv import load_dotenv
 
 from tradlab.engine.backtester_v1 import BacktesterV1
 from tradlab.engine.strategies.str_100_chainflow_eth import STR100ChainFlowETH
+
+
+def mask_db_url(db_url: str) -> str:
+    """Mask password in database URL for safe logging."""
+    return re.sub(r'://([^:]+):([^@]+)@', r'://\1:****@', db_url)
 
 
 def parse_args():
@@ -143,7 +149,7 @@ def main():
     print(f"Initial Capital: ${initial_capital:,.2f}")
     print(f"Commission Rate: {commission_rate * 100:.4f}%")
     print(f"Slippage: {slippage_bps} bps")
-    print(f"Database: {db_url.split('@')[-1]}")
+    print(f"Database: {mask_db_url(db_url)}")
     print("=" * 60)
 
     # Create strategy and backtester

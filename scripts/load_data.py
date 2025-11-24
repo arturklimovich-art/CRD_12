@@ -7,6 +7,7 @@ Usage: python scripts/load_data.py --symbol ETH/USDT --start 2024-01-01
 """
 import argparse
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +18,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from dotenv import load_dotenv
 
 from tradlab.collector.ohlcv_collector_v0 import OHLCVCollector
+
+
+def mask_db_url(db_url: str) -> str:
+    """Mask password in database URL for safe logging."""
+    return re.sub(r'://([^:]+):([^@]+)@', r'://\1:****@', db_url)
 
 
 def parse_args():
@@ -78,7 +84,7 @@ def main():
     print(f"Symbol: {args.symbol}")
     print(f"Timeframes: {timeframes}")
     print(f"Start date: {start_date.strftime('%Y-%m-%d')}")
-    print(f"Database: {db_url.split('@')[-1]}")
+    print(f"Database: {mask_db_url(db_url)}")
     print("=" * 60)
 
     # Create collector and load data

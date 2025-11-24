@@ -6,6 +6,7 @@ Runs SQL migrations from DB/migrations/ folder.
 Usage: python scripts/run_migrations.py
 """
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -14,6 +15,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import psycopg2
 from dotenv import load_dotenv
+
+
+def mask_db_url(db_url: str) -> str:
+    """Mask password in database URL for safe logging."""
+    return re.sub(r'://([^:]+):([^@]+)@', r'://\1:****@', db_url)
 
 
 def run_migrations():
@@ -45,7 +51,7 @@ def run_migrations():
     print("=" * 60)
     print("TradLab Migration Runner")
     print("=" * 60)
-    print(f"Database: {db_url.split('@')[-1]}")
+    print(f"Database: {mask_db_url(db_url)}")
     print(f"Migrations: {len(sql_files)} files found")
     print("=" * 60)
 
