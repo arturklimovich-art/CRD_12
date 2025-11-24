@@ -1,0 +1,118 @@
+﻿# ============================================================================
+# ROADMAP/DOMAINS/ENG/GENERAL_PLAN.yaml
+# План развития домена Engineers_IT (ENG)
+# Владелец: arturklimovich-art
+# Дата создания: 2025-11-23T17:15:24Z
+# ============================================================================
+
+domain:
+  code: ENG
+  title: Engineers_IT
+  owner: arturklimovich-art
+  status: active
+  api_base: http://localhost:8000
+  technologies:
+    - Python 3.11
+    - PostgreSQL 16 + pgvector
+    - FastAPI
+    - Docker Compose
+    - Git + GitHub
+
+blocks:
+  - id: B0
+    title: "Модуль Источника Истины (SoT)"
+    description: "Федеративная система управления roadmap через YAML ↔ PostgreSQL"
+    status: in_progress
+    priority: critical
+    owner: arturklimovich-art
+    started_at: "2025-11-23T16:00:00Z"
+    
+    tasks:
+      - id: E1-B0-T1
+        title: "Проектирование схемы БД для SoT"
+        status: completed
+        owner: arturklimovich-art
+        priority: high
+        started_at: "2025-11-23T16:30:00Z"
+        completed_at: "2025-11-23T16:45:00Z"
+        artifacts:
+          - migrations/V001__create_sot_tables.sql
+      
+      - id: E1-B0-T2
+        title: "Миграция и тестирование схемы БД"
+        status: completed
+        owner: arturklimovich-art
+        priority: high
+        started_at: "2025-11-23T16:45:00Z"
+        completed_at: "2025-11-23T16:50:00Z"
+        artifacts:
+          - migrations/applied_V001.log
+      
+      - id: E1-B0-T3
+        title: "Создание модуля синхронизации YAML ↔ PostgreSQL"
+        status: completed
+        owner: arturklimovich-art
+        priority: high
+        started_at: "2025-11-23T16:50:49Z"
+        completed_at: "2025-11-23T17:10:14Z"
+        artifacts:
+          - src/engineer_b_api/sot/yaml_sync.py
+          - agents/EngineersIT.Bot/SoT-Commands.ps1
+          - src/engineer_b_api/sot/test_sync.py
+        steps:
+          - id: E1-B0-T3-S1
+            title: "Python модуль YAMLSyncEngine"
+            status: completed
+            description: "Класс для синхронизации Core-каталога и доменных roadmap"
+          - id: E1-B0-T3-S2
+            title: "PowerShell команды управления SoT"
+            status: completed
+            description: "Функции: Sync-CoreCatalog, Get-AllDomains, Get-SyncHistory"
+      
+      - id: E1-B0-T4
+        title: "Парсинг структуры roadmap (blocks → tasks → steps)"
+        status: planned
+        owner: arturklimovich-art
+        priority: high
+        dependencies:
+          - E1-B0-T3
+        steps:
+          - id: E1-B0-T4-S1
+            title: "Парсинг blocks из YAML"
+            status: planned
+          - id: E1-B0-T4-S2
+            title: "Парсинг tasks из blocks"
+            status: planned
+          - id: E1-B0-T4-S3
+            title: "Парсинг steps из tasks"
+            status: planned
+          - id: E1-B0-T4-S4
+            title: "Синхронизация roadmap_blocks, roadmap_tasks, roadmap_steps"
+            status: planned
+      
+      - id: E1-B0-T5
+        title: "Обратная синхронизация БД → YAML"
+        status: planned
+        owner: arturklimovich-art
+        priority: medium
+        dependencies:
+          - E1-B0-T4
+
+  - id: B1
+    title: "Интеллектуальный агент (Intelligent Agent)"
+    status: planned
+    priority: high
+    description: "AI-агент для автоматизации разработки"
+
+  - id: B2
+    title: "Curator (Управление roadmap)"
+    status: planned
+    priority: medium
+    description: "Система управления задачами через NL-команды"
+
+meta:
+  last_updated: "2025-11-23T17:15:24Z"
+  total_blocks: 3
+  total_tasks: 5
+  completed_tasks: 3
+  version: "1.0.0"

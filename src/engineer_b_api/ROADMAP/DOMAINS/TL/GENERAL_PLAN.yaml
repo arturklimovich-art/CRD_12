@@ -1,0 +1,524 @@
+﻿# ============================================================================
+# ROADMAP/DOMAINS/TL/GENERAL_PLAN.yaml
+# Канон домена TradLab - Этап L1 (Фундамент)
+# Автор: arturklimovich-art
+# Дата: 2025-11-23 16:48:23 UTC
+# Версия: 0.1.0-L1
+# ============================================================================
+
+meta:
+  domain_code: "TL"
+  domain_title: "TradLab"
+  version: "0.1.0-L1"
+  stage: "L1"
+  description: "Фундамент системы разработки и бэктестинга торговых стратегий"
+  updated_at: "2025-11-23T16:48:23Z"
+  updated_by: "arturklimovich-art"
+  parent_plan: "../../GENERAL_PLAN.yaml"
+
+# ============================================================================
+# ЦЕЛЬ ЭТАПА L1
+# ============================================================================
+goal:
+  title: "TradLab L1 - Фундамент + STR-100 + Demo"
+  description: |
+    Создать минимально работоспособную систему для:
+    1. Загрузки исторических данных (OHLCV ETHUSDT)
+    2. Реализации стратегии STR-100 ChainFlow Alpha v3.2
+    3. Бэктестинга с метриками (PnL, Sharpe, Sortino, MaxDD, Calmar, WinRate, ProfitFactor)
+    4. Проверки через Risk-Gate (MinTRL, PSR, DSR, PBO)
+    5. Подключения к demo-счёту биржи для paper-trading
+  success_criteria:
+    - "Данные ETHUSDT (5+ лет) загружены в market.ohlcv"
+    - "Стратегия STR-100 реализована и детерминирована (unit-тесты зелёные)"
+    - "Backtester v1 прогоняет 3 WF-окна и генерирует отчёты"
+    - "Risk-Gate v1 одобряет или блокирует STR-100 (pass_risk_gate)"
+    - "Demo-Executor v1 открывает/закрывает позиции на testnet"
+    - "CLI команды работают: tradlab collect, backtest, risk, demo-run"
+
+# ============================================================================
+# БЛОКИ ЭТАПА L1
+# ============================================================================
+blocks:
+  - id: B0
+    title: "Модуль Источника Истины (SoT)"
+    description: "Федеративная система управления roadmap через YAML ↔ PostgreSQL"
+    status: in_progress
+    priority: critical
+    owner: arturklimovich-art
+    started_at: "2025-11-23T17:24:00Z"
+    
+    tasks:
+      - id: E2-TL-B0-T1
+        title: "Quick Start: Smoke-тест TradLab"
+        status: completed
+        owner: arturklimovich-art
+        priority: high
+        started_at: "2025-11-23T17:27:41Z"
+        completed_at: "2025-11-23T17:28:29Z"
+        artifacts:
+          - src/tradlab/__init__.py
+          - src/tradlab/smoke_test.py
+      
+      - id: E2-TL-B0-T2
+        title: "Quick Start: Минимальный бэктест"
+        status: completed
+        owner: arturklimovich-art
+        priority: high
+        started_at: "2025-11-23T17:28:29Z"
+        completed_at: "2025-11-23T17:29:56Z"
+        artifacts:
+          - src/tradlab/demo_data.py
+          - src/tradlab/simple_strategy.py
+          - src/tradlab/backtest.py
+        results:
+          initial_capital: 10000.0
+          final_capital: 3670.4
+          total_pnl: -6329.6
+          total_trades: 4
+          win_rate: 50.0
+      
+      - id: E2-TL-B0-T3
+        title: "Интеграция TradLab с SoT (синхронизация roadmap)"
+        status: in_progress
+        owner: arturklimovich-art
+        priority: high
+        started_at: "2025-11-23T17:32:21Z"
+  - id: "B0"
+    code: "E1-B0"
+    title: "Модуль Источника Истины (SoT) для TradLab"
+    status: "in_progress"
+    priority: 1
+    description: |
+      Регистрация домена TL в федеративной системе, создание структуры
+      директорий, синхронизация YAML ↔ БД, интеграция с Core.
+    tasks:
+      - id: "T1"
+        code: "E1-B0-T1"
+        title: "Каталог доменов и регистрация TL в Core"
+        status: "done"
+        steps:
+          - id: "S1"
+            code: "E1-B0-T1-S1"
+            title: "SQL-миграция Core-каталога доменов"
+            status: "done"
+            artifacts:
+              - type: "sql"
+                path: "DB/migrations/20251123_001_sot_foundation.sql"
+                status: "applied"
+          - id: "S2"
+            code: "E1-B0-T1-S2"
+            title: "Расширение Roadmap-таблиц под domain_code"
+            status: "done"
+            artifacts:
+              - type: "sql"
+                path: "DB/migrations/20251123_001_sot_foundation.sql"
+                status: "applied"
+          - id: "S3"
+            code: "E1-B0-T1-S3"
+            title: "Регистрация доменов ENG и TL"
+            status: "done"
+            artifacts:
+              - type: "sql"
+                path: "DB/migrations/20251123_001_sot_foundation.sql"
+                status: "applied"
+
+      - id: "T2"
+        code: "E1-B0-T2"
+        title: "Файловая структура домена TL и канон"
+        status: "in_progress"
+        steps:
+          - id: "S1"
+            code: "E1-B0-T2-S1"
+            title: "Директории домена TL"
+            status: "done"
+            artifacts:
+              - type: "directory"
+                path: "ROADMAP/DOMAINS/TL/"
+                status: "created"
+              - type: "directory"
+                path: "ROADMAP/DOMAINS/TL/specs/"
+                status: "created"
+              - type: "directory"
+                path: "src/tradlab/"
+                status: "created"
+          - id: "S2"
+            code: "E1-B0-T2-S2"
+            title: "Core-канон доменов"
+            status: "done"
+            artifacts:
+              - type: "yaml"
+                path: "ROADMAP/GENERAL_PLAN.yaml"
+                status: "updated"
+          - id: "S3"
+            code: "E1-B0-T2-S3"
+            title: "TL-канон"
+            status: "in_progress"
+            artifacts:
+              - type: "yaml"
+                path: "ROADMAP/DOMAINS/TL/GENERAL_PLAN.yaml"
+                status: "in_progress"
+
+      - id: "T3"
+        code: "E1-B0-T3"
+        title: "API/CLI для синхронизации домена TL"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B0-T3-S1"
+            title: "HTTP-эндпойнты Core"
+            status: "planned"
+            artifacts:
+              - type: "python"
+                path: "src/engineer_b_api/sot/yaml_sync.py"
+                status: "planned"
+              - type: "python"
+                path: "src/engineer_b_api/routes/sot_router.py"
+                status: "planned"
+          - id: "S2"
+            code: "E1-B0-T3-S2"
+            title: "PowerShell-команды (Контур A)"
+            status: "planned"
+            artifacts:
+              - type: "powershell"
+                path: "agents/EngineersIT.Bot/Roadmap-Commands.ps1"
+                status: "planned"
+
+  - id: "B1"
+    code: "E1-B1"
+    title: "Управление качеством и контракты (TL L1)"
+    status: "planned"
+    priority: 2
+    tasks:
+      - id: "T1"
+        code: "E1-B1-T1"
+        title: "S-0/DoD и схемы идентификаторов для TL"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B1-T1-S1"
+            title: "PASSPORT и шаблоны"
+            status: "planned"
+            artifacts:
+              - type: "markdown"
+                path: "ROADMAP/DOMAINS/TL/PASSPORT.md"
+                status: "planned"
+          - id: "S2"
+            code: "E1-B1-T1-S2"
+            title: "Контракты данных и Strategy-ABI"
+            status: "planned"
+            artifacts:
+              - type: "markdown"
+                path: "ROADMAP/DOMAINS/TL/specs/DataContract.md"
+                status: "planned"
+              - type: "markdown"
+                path: "ROADMAP/DOMAINS/TL/specs/StrategyABI.md"
+                status: "planned"
+          - id: "S3"
+            code: "E1-B1-T1-S3"
+            title: "Стандартизация отчётов"
+            status: "planned"
+            artifacts:
+              - type: "markdown"
+                path: "ROADMAP/DOMAINS/TL/specs/ReportContract.md"
+                status: "planned"
+
+  - id: "B2"
+    code: "E1-B2"
+    title: "Данные и БД (TL L1)"
+    status: "planned"
+    priority: 3
+    tasks:
+      - id: "T1"
+        code: "E1-B2-T1"
+        title: "Схемы БД и таблицы временных рядов TL"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B2-T1-S1"
+            title: "SQL-миграция TL-схем"
+            status: "planned"
+            artifacts:
+              - type: "sql"
+                path: "DB/migrations/20251123_003_tl_schema_l1.sql"
+                status: "planned"
+          - id: "S2"
+            code: "E1-B2-T1-S2"
+            title: "Таблицы TL (market.ohlcv, lab.trades, lab.results, lab.jobs)"
+            status: "planned"
+          - id: "S3"
+            code: "E1-B2-T1-S3"
+            title: "Вьюха lab.features_v1"
+            status: "planned"
+
+      - id: "T2"
+        code: "E1-B2-T2"
+        title: "Мини-ингест OHLCV для ETH"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B2-T2-S1"
+            title: "Collector v0"
+            status: "planned"
+            artifacts:
+              - type: "python"
+                path: "src/tradlab/collector/ohlcv_collector_v0.py"
+                status: "planned"
+          - id: "S2"
+            code: "E1-B2-T2-S2"
+            title: "Валидация данных"
+            status: "planned"
+
+  - id: "B3"
+    code: "E1-B3"
+    title: "Strategy-ABI и STR-100 ChainFlow (ETH)"
+    status: "planned"
+    priority: 4
+    tasks:
+      - id: "T1"
+        code: "E1-B3-T1"
+        title: "Strategy-ABI (кодовой контракт TL)"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B3-T1-S1"
+            title: "Базовый интерфейс Strategy"
+            status: "planned"
+            artifacts:
+              - type: "python"
+                path: "src/tradlab/engine/strategy_abi.py"
+                status: "planned"
+          - id: "S2"
+            code: "E1-B3-T1-S2"
+            title: "Адаптер фич"
+            status: "planned"
+            artifacts:
+              - type: "python"
+                path: "src/tradlab/engine/feature_adapter_v1.py"
+                status: "planned"
+
+      - id: "T2"
+        code: "E1-B3-T2"
+        title: "Спецификация и реализация стратегии STR-100"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B3-T2-S1"
+            title: "Спецификация STR-100"
+            status: "planned"
+            artifacts:
+              - type: "markdown"
+                path: "ROADMAP/DOMAINS/TL/specs/STR-100_ChainFlowAlpha_v3_2.md"
+                status: "planned"
+          - id: "S2"
+            code: "E1-B3-T2-S2"
+            title: "Реализация STR-100"
+            status: "planned"
+            artifacts:
+              - type: "python"
+                path: "src/tradlab/engine/strategies/str_100_chainflow_eth.py"
+                status: "planned"
+          - id: "S3"
+            code: "E1-B3-T2-S3"
+            title: "Юнит-тесты STR-100"
+            status: "planned"
+            artifacts:
+              - type: "python"
+                path: "src/tradlab/tests/test_str_100_chainflow_eth.py"
+                status: "planned"
+
+  - id: "B4"
+    code: "E1-B4"
+    title: "Бэктест и метрики"
+    status: "planned"
+    priority: 5
+    tasks:
+      - id: "T1"
+        code: "E1-B4-T1"
+        title: "Backtester v1"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B4-T1-S1"
+            title: "Backtester v1"
+            status: "planned"
+            artifacts:
+              - type: "python"
+                path: "src/tradlab/engine/backtester/backtester_v1.py"
+                status: "planned"
+          - id: "S2"
+            code: "E1-B4-T1-S2"
+            title: "Метрики"
+            status: "planned"
+            artifacts:
+              - type: "python"
+                path: "src/tradlab/engine/metrics/basic_metrics.py"
+                status: "planned"
+
+      - id: "T2"
+        code: "E1-B4-T2"
+        title: "Walk-Forward v1"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B4-T2-S1"
+            title: "Определить WF-окна"
+            status: "planned"
+          - id: "S2"
+            code: "E1-B4-T2-S2"
+            title: "Генерация отчётов"
+            status: "planned"
+
+  - id: "B5"
+    code: "E1-B5"
+    title: "Risk-Gate v1"
+    status: "planned"
+    priority: 6
+    tasks:
+      - id: "T1"
+        code: "E1-B5-T1"
+        title: "MinTRL / PSR / DSR"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B5-T1-S1"
+            title: "Модуль risk_gate_v1"
+            status: "planned"
+            artifacts:
+              - type: "python"
+                path: "src/tradlab/engine/risk/risk_gate_v1.py"
+                status: "planned"
+          - id: "S2"
+            code: "E1-B5-T1-S2"
+            title: "Запись результата"
+            status: "planned"
+
+      - id: "T2"
+        code: "E1-B5-T2"
+        title: "Мини-PBO для STR-100"
+        status: "planned"
+
+  - id: "B6"
+    code: "E1-B6"
+    title: "Оркестратор v1 (TL)"
+    status: "planned"
+    priority: 7
+    tasks:
+      - id: "T1"
+        code: "E1-B6-T1"
+        title: "CLI-оркестратор L1 для TL"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B6-T1-S1"
+            title: "Команды tradlab CLI"
+            status: "planned"
+            artifacts:
+              - type: "python"
+                path: "src/tradlab/bot/orchestrator_cli.py"
+                status: "planned"
+          - id: "S2"
+            code: "E1-B6-T1-S2"
+            title: "Связь с SoT"
+            status: "planned"
+
+  - id: "B7"
+    code: "E1-B7"
+    title: "Наблюдаемость v1"
+    status: "planned"
+    priority: 8
+    tasks:
+      - id: "T1"
+        code: "E1-B7-T1"
+        title: "Логи и дашборд"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B7-T1-S1"
+            title: "Логирование в БД"
+            status: "planned"
+          - id: "S2"
+            code: "E1-B7-T1-S2"
+            title: "Grafana-дашборд TL"
+            status: "planned"
+
+  - id: "B8"
+    code: "E1-B8"
+    title: "Demo-Executor v1 (подключение STR-100 к демо-счёту)"
+    status: "planned"
+    priority: 9
+    tasks:
+      - id: "T1"
+        code: "E1-B8-T1"
+        title: "Конфиг и клиент демо-биржи"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B8-T1-S1"
+            title: "Конфиг демо-биржи"
+            status: "planned"
+            artifacts:
+              - type: "yaml"
+                path: "workspace/config/demo_exchange.yaml"
+                status: "planned"
+          - id: "S2"
+            code: "E1-B8-T1-S2"
+            title: "Клиент демо-биржи"
+            status: "planned"
+            artifacts:
+              - type: "python"
+                path: "src/tradlab/executor/demo_exchange_client.py"
+                status: "planned"
+
+      - id: "T2"
+        code: "E1-B8-T2"
+        title: "Маппинг сигналов STR-100 → демо-ордера"
+        status: "planned"
+        steps:
+          - id: "S1"
+            code: "E1-B8-T2-S1"
+            title: "Demo-Executor"
+            status: "planned"
+            artifacts:
+              - type: "python"
+                path: "src/tradlab/executor/demo_executor_v1.py"
+                status: "planned"
+          - id: "S2"
+            code: "E1-B8-T2-S2"
+            title: "Интеграция с оркестратором"
+            status: "planned"
+          - id: "S3"
+            code: "E1-B8-T2-S3"
+            title: "Защита от ошибочного live"
+            status: "planned"
+
+# ============================================================================
+# DoD (Definition of Done) ДЛЯ ЭТАПА L1
+# ============================================================================
+dod:
+  - "Все блоки B0-B8 имеют status='done'"
+  - "Все unit-тесты зелёные (pytest pass rate >= 95%)"
+  - "Smoke-тесты системы пройдены"
+  - "Curator одобрил ключевые модули (score >= 70)"
+  - "Отчёты WF-бэктеста сгенерированы в workspace/reports/STR-100/"
+  - "Risk-Gate pass_risk_gate=TRUE для STR-100"
+  - "Demo-Executor успешно открыл/закрыл минимум 1 позицию на testnet"
+  - "CLI команды работают без ошибок"
+  - "Snapshot состояния создан в eng_it.system_snapshots"
+  - "Документация актуализирована (PASSPORT.md, specs/)"
+
+# ============================================================================
+# ИСТОРИЯ ИЗМЕНЕНИЙ
+# ============================================================================
+history:
+  - date: "2025-11-23T16:48:23Z"
+    version: "0.1.0-L1"
+    author: "arturklimovich-art"
+    task: "E1-B0-T2-S3"
+    changes:
+      - "Создан канон домена TL"
+      - "Определены блоки B0-B8 для этапа L1"
+      - "Структура задач и шагов зафиксирована"
+      - "DoD для L1 определён"
+    files_created:
+      - "ROADMAP/DOMAINS/TL/GENERAL_PLAN.yaml"

@@ -9,6 +9,8 @@ Telegram Bot для управления Roadmap и запуска Engineer API
 import os
 import sys
 import logging
+import os
+import subprocess
 import json
 import asyncio
 from datetime import datetime
@@ -328,7 +330,7 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         payload = {
             "task": task_title,
-            "job_id": task_id
+            "job_id": str(task_id)
         }
         
         logger.info(f"[ENGINEER_B] Отправка задачи {task_code} в Engineer B API")
@@ -401,6 +403,46 @@ async def run_roadmap_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                                 logger.info(f"[CURATOR] Код одобрен с оценкой {score}")
                                 bot_response = f"✅ Задача выполнена!\n\n📝 ID: `{task_code}`\n\n🔍 Curator: Одобрено (Оценка: {score})"
                                 update_task_status(task["code"], "done")
+                                
+                                # ===== SAVE FILE TO REPOSITORY =====
+                                try:
+                                    # target_path и generated_code уже определены выше (строки 352, 377)
+                                    # Используем их напрямую
+                                    
+                                    if target_path and generated_code:
+                                        file_path = f"/repo/{target_path}"
+                                        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                                        with open(file_path, "w", encoding="utf-8") as f:
+                                            f.write(generated_code)
+                                        logger.info(f"[FILE] ✅ Файл сохранён: {file_path}")
+                                        
+                                        subprocess.run(["git", "add", file_path], cwd="/repo", check=False)
+                                        commit_msg = f"Add {target_path} (task {task_code})"
+                                        subprocess.run(["git", "commit", "-m", commit_msg], cwd="/repo", check=False)
+                                        logger.info(f"[GIT] ✅ Git commit создан: {commit_msg}")
+                                        
+                                        # Git push (опционально, требует credentials)
+                                        try:
+                                            push_result = subprocess.run(
+                                                ["git", "push"], 
+                                                cwd="/repo", 
+                                                capture_output=True, 
+                                                text=True, 
+                                                timeout=30
+                                            )
+                                            if push_result.returncode == 0:
+                                                logger.info(f"[GIT] ✅ Git push успешен")
+                                            else:
+                                                logger.warning(f"[GIT] ⚠️ Git push failed: {push_result.stderr}")
+                                        except subprocess.TimeoutExpired:
+                                            logger.warning(f"[GIT] ⚠️ Git push timeout")
+                                        except Exception as push_error:
+                                            logger.warning(f"[GIT] ⚠️ Git push error: {push_error}")
+                                    else:
+                                        logger.warning(f"[FILE] ❌ target_path={target_path}, code_len={len(generated_code)}")
+                                except Exception as save_error:
+                                    logger.error(f"[FILE] ❌ Ошибка: {save_error}")
+                                # ===== END SAVE FILE =====
                                 
                                 # KANON: Mark CP09_CURATOR
                                 mark_checkpoint(task["code"], "CP09_CURATOR", "passed",

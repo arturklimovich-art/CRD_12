@@ -1,0 +1,33 @@
+﻿# CRD12 CONTEXT - 2025-11-23 19:20:29 UTC
+
+Repository: github.com/arturklimovich-art/CRD_12
+Branch: feature/roadmap-arturklimovich-20251117
+
+## Database
+- Host: localhost:5432
+- Database: crd12
+- Schema: eng_it
+- Blocks: 26
+- Tasks: 63
+- Steps: 14
+
+## Completed
+- E1-B0-T1: DB schema (done)
+- E1-B0-T2: Migrations (done)
+- E1-B0-T3: YAML sync (done)
+- E1-B0-T4: Roadmap parsing (done)
+- TL Quick Start (done)
+
+## Next Tasks
+- E1-B0-T5: Reverse sync (DB to YAML)
+- TL-B2: OHLCV database
+- TL-B4: Advanced backtest
+
+## Files
+- ROADMAP/DOMAINS/ENG/GENERAL_PLAN.yaml
+- ROADMAP/DOMAINS/TL/GENERAL_PLAN.yaml
+- src/engineer_b_api/sot/yaml_sync.py
+
+---
+What task are we working on today?
+

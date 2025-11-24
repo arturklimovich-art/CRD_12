@@ -1,133 +1,82 @@
-﻿"""
-Engineer B Agent API
-Endpoint для генерации кода на основе задач
-"""
+﻿import json
+import logging
+from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
 import httpx
-import os
-import logging
-import json
+from intelligent_agent import IntelligentAgent
+from intelligent_agent import DeepSeekExecutor
 
-router = APIRouter()
 log = logging.getLogger(__name__)
+router = APIRouter()
 
-# Конфигурация LLM
-DEEPSEEK_PROXY_URL = os.getenv("DEEPSEEK_PROXY_URL", "http://deepseek_proxy:8010/llm/complete")
+DEEPSEEK_PROXY_URL = "http://deepseek_proxy:8010/llm/complete"
 
 class AnalyzeRequest(BaseModel):
     task: str
     context: Optional[Dict[str, Any]] = None
+    job_id: Optional[str] = None
 
 class AnalyzeResponse(BaseModel):
-    engineer_status: str  # "passed" or "failed"
-    generated_code: Optional[str] = None
-    report: Dict[str, Any]
-    error: Optional[str] = None
+    engineer_status: str
+    generated_code: str
+    report: Dict[str, Any] = {}
 
 @router.post("/agent/analyze", response_model=AnalyzeResponse)
 async def analyze_task(request: AnalyzeRequest):
     """
-    Анализирует задачу и генерирует код
+    Анализирует задачу и генерирует код используя IntelligentAgent
     
     Args:
         request: Запрос с описанием задачи и контекстом
     
     Returns:
-        AnalyzeResponse: Результат генерации кода
+        AnalyzeResponse: Результат генерации кода с target_path_hint
     """
     try:
         log.info(f"[ENGINEER_AGENT] Получена задача: {request.task[:100]}...")
+        log.info(f"[ENGINEER_AGENT] Используем IntelligentAgent для обработки")
         
-        # Формируем prompt для LLM
-        prompt = f"""You are Engineer B - a professional Python code generator.
-
-TASK:
-{request.task}
-
-INSTRUCTIONS:
-1. Analyze the task carefully
-2. Generate ONLY the code that needs to be changed/added
-3. Use proper Python syntax
-4. Include comments in Russian
-5. Return code in a clear, executable format
-6. Do NOT include explanations outside code blocks
-
-Generate the complete, working code now:
-"""
+        # Use IntelligentAgent for proper task processing
+        # Create DeepSeekExecutor
+        executor = DeepSeekExecutor("http://deepseek_proxy:8010/llm/complete")
+        agent = IntelligentAgent(deepseek_executor=executor)
+        result = await agent.run_cycle(task_text=request.task)
+        # DEBUG: Показать что вернул IntelligentAgent
+        log.info(f"[ENGINEER_AGENT] [DEBUG] result keys = {list(result.keys())}")
+        log.info(f"[ENGINEER_AGENT] [DEBUG] status = {result.get('status', 'N/A')}")
+        log.info(f"[ENGINEER_AGENT] [DEBUG] code length = {len(result.get('code', ''))}")
+        if "error" in result:
+            log.error(f"[ENGINEER_AGENT] [DEBUG] ERROR TEXT = {result.get('error', 'N/A')}")
         
-        # Добавляем контекст если есть
-        if request.context:
-            prompt += f"\n\nSYSTEM CONTEXT:\n{json.dumps(request.context, indent=2, ensure_ascii=False)}\n"
+        # Extract status, code, and report
+        status = result.get("status", "failed")
+        code = result.get("code", "")
+        report = result.get("report", {})
         
-        # Вызываем DeepSeek Proxy
-        log.info(f"[ENGINEER_AGENT] Отправка запроса в DeepSeek Proxy: {DEEPSEEK_PROXY_URL}")
+        # Log target_path_hint if present
+        if "target_path_hint" in report:
+            log.info(f"[ENGINEER_AGENT] [DEBUG] FULL REPORT = {report}")
+            log.info(f"[ENGINEER_AGENT] Извлечён target_path: {report['target_path_hint']}")
+        else:
+            log.warning(f"[ENGINEER_AGENT] target_path_hint не найден в задаче")
         
-        async with httpx.AsyncClient(timeout=180.0) as client:
-            llm_response = await client.post(
-                DEEPSEEK_PROXY_URL,
-                json={"prompt": prompt}
-            )
+        engineer_status = "passed" if status == "ok" and code else "failed"
         
-        if llm_response.status_code != 200:
-            log.error(f"[ENGINEER_AGENT] DeepSeek Proxy error: {llm_response.status_code} - {llm_response.text}")
-            return AnalyzeResponse(
-                engineer_status="failed",
-                generated_code=None,
-                report={"description": f"DeepSeek Proxy error: {llm_response.status_code}"},
-                error=f"Proxy returned status {llm_response.status_code}"
-            )
-        
-        llm_data = llm_response.json()
-        
-        # Парсим ответ DeepSeek Proxy
-        if not llm_data.get("ok", False):
-            log.error(f"[ENGINEER_AGENT] DeepSeek Proxy returned ok=false: {llm_data.get('output', 'No output')}")
-            return AnalyzeResponse(
-                engineer_status="failed",
-                generated_code=None,
-                report={"description": "DeepSeek Proxy returned error"},
-                error=llm_data.get("output", "Unknown error")
-            )
-        
-        generated_code = llm_data.get("output", "")
-        
-        if not generated_code or len(generated_code.strip()) < 10:
-            log.warning("[ENGINEER_AGENT] DeepSeek вернул пустой или слишком короткий код")
-            return AnalyzeResponse(
-                engineer_status="failed",
-                generated_code=None,
-                report={"description": "Generated code is empty or too short"},
-                error="Code generation failed - empty output"
-            )
-        
-        log.info(f"[ENGINEER_AGENT] ✅ Код сгенерирован успешно ({len(generated_code)} символов)")
+        log.info(f"[ENGINEER_AGENT] ✅ Код сгенерирован успешно ({len(code)} символов)")
         
         return AnalyzeResponse(
-            engineer_status="passed",
-            generated_code=generated_code,
-            report={
-                "description": "Code generated successfully by Engineer B via DeepSeek",
-                "code_length": len(generated_code),
-                "llm_model": "deepseek-chat"
-            },
-            error=None
+            engineer_status=engineer_status,
+            generated_code=code,
+            report=report
         )
         
-    except httpx.TimeoutException:
-        log.error("[ENGINEER_AGENT] Timeout при обращении к DeepSeek Proxy")
-        return AnalyzeResponse(
-            engineer_status="failed",
-            generated_code=None,
-            report={"description": "DeepSeek Proxy timeout"},
-            error="Timeout waiting for LLM response (180s)"
-        )
     except Exception as e:
-        log.error(f"[ENGINEER_AGENT] Ошибка: {e}")
+        log.error(f"[ENGINEER_AGENT] ❌ Ошибка: {str(e)}")
+        import traceback
+        log.error(traceback.format_exc())
         return AnalyzeResponse(
             engineer_status="failed",
-            generated_code=None,
-            report={"description": f"Internal error: {str(e)}"},
-            error=str(e)
+            generated_code="",
+            report={"error": str(e)}
         )

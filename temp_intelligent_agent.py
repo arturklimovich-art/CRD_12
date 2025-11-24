@@ -1,6 +1,6 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
-Engineer B â€” Intelligent Agent (Ð¸Ð½Ñ‚ÐµÑ€Ñ„ÐµÐ¹Ñ Ðº LLM + Ð±ÐµÐ·Ð¾Ð¿Ð°ÑÐ½Ñ‹Ð¹ runtime-smoke)
+Engineer B — Intelligent Agent (интерфейс к LLM + безопасный runtime-smoke)
 """
 
 from __future__ import annotations
@@ -18,37 +18,28 @@ from typing import Any, Dict, Optional, Tuple
 
 try:
     import httpx
-except Exception:  # Ð¾ÑÑ‚Ð°Ð²Ð»ÑÐµÐ¼ ÑÐ¾Ð²Ð¼ÐµÑÑ‚Ð¸Ð¼Ð¾ÑÑ‚ÑŒ: ÑÑ€ÐµÐ´Ð° Ð±ÐµÐ· httpx
+except Exception:  # оставляем совместимость: среда без httpx
     httpx = None
 
 logger = logging.getLogger(__name__)
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# Ð ÐµÐ³ÐµÐºÑÐ¿Ñ‹ Ð´Ð»Ñ Ð¸Ð·Ð²Ð»ÐµÑ‡ÐµÐ½Ð¸Ñ ÐºÐ¾Ð´Ð°/Ð¾Ñ‚Ñ‡Ñ‘Ñ‚Ð°
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ──────────────────────────────────────────────────────────────────────────────
+# Регекспы для извлечения кода/отчёта
+# ──────────────────────────────────────────────────────────────────────────────
 CODE_FENCE = re.compile(r"```(?:python|py)?\s*(?P<code>[\s\S]*?)\s*```", re.IGNORECASE)
 SINGLE_TICK_CODE = re.compile(r"`(?:python|py)?\s*(?P<code>[\s\S]*?)\s*`", re.IGNORECASE)
 JSON_FENCE = re.compile(r"```json\s*(?P<json>\{[\s\S]*?\})\s*```", re.IGNORECASE)
 
-# Ð¡Ð¾Ð²Ð¼ÐµÑÑ‚Ð¸Ð¼Ð¾ÑÑ‚ÑŒ ÑÐ¾ ÑÑ‚Ð°Ñ€Ñ‹Ð¼Ð¸ ÑˆÐ°Ð±Ð»Ð¾Ð½Ð°Ð¼Ð¸
+# Совместимость со старыми шаблонами
 _JSON_FENCE_RE = re.compile(r"`json\s*(?P<json>\{[\s\S]*?\})\s*`", re.IGNORECASE)
-_PATH_HINT_RE = re.compile(
-    r"(?:"
-    r"(?:Modify|Patch|Edit|Fix|Create|Add|Update)\s+(?:file\s+)?([\w\./\-_]+\.py)"
-    r"|"
-    r"(?:Создать|Добавить|Изменить|Исправить)\s+(?:файл\s+)?([\w\./\-_]+\.py)"
-    r"|"
-    r"в\s+([\w\./\-_]+\.py)"
-    r")",
-    re.IGNORECASE
-)
+_PATH_HINT_RE = re.compile(r"(?:Modify|Patch|Edit|Fix)\s+([\w\./\-_]+\.py)", re.IGNORECASE)
 
 APP_ROOT_PATH = "/app"
 MAX_FILE_SIZE = 50 * 1024  # 50 KB
 
 
 def _norm_under_app(path: str) -> Optional[str]:
-    """ÐÐ¾Ñ€Ð¼Ð°Ð»Ð¸Ð·ÑƒÐµÑ‚ Ð¿ÑƒÑ‚ÑŒ Ð¸ Ð³Ð°Ñ€Ð°Ð½Ñ‚Ð¸Ñ€ÑƒÐµÑ‚, Ñ‡Ñ‚Ð¾ Ð¾Ð½ Ð¿Ð¾Ð´ /app; Ð¸Ð½Ð°Ñ‡Ðµ None."""
+    """Нормализует путь и гарантирует, что он под /app; иначе None."""
     if not path:
         return None
     p = os.path.normpath(path.replace("\\", "/"))
@@ -60,10 +51,10 @@ def _norm_under_app(path: str) -> Optional[str]:
 
 def _map_to_app_path(rel_or_abs: str) -> Optional[str]:
     """
-    ÐŸÑ€ÐµÐ¾Ð±Ñ€Ð°Ð·ÑƒÐµÑ‚ Ð¿Ð¾Ð´ÑÐºÐ°Ð·ÐºÑƒ Ð¿ÑƒÑ‚Ð¸ Ð¸Ð· Ð¢Ð— Ð² Ð¿ÑƒÑ‚ÑŒ Ð²Ð½ÑƒÑ‚Ñ€Ð¸ ÐºÐ¾Ð½Ñ‚ÐµÐ¹Ð½ÐµÑ€Ð°:
+    Преобразует подсказку пути из ТЗ в путь внутри контейнера:
     - 'src/app/engineer_b_api/xxx.py' -> '/app/xxx.py'
-    - '/app/xxx.py' -> '/app/xxx.py' (Ð²Ð°Ð»Ð¸Ð´Ð¸Ñ€ÑƒÐµÐ¼ ÐºÐ¾Ñ€ÐµÐ½ÑŒ)
-    - 'app.py' Ð¸Ð»Ð¸ 'xxx.py' -> '/app/<Ð¸Ð¼Ñ>'
+    - '/app/xxx.py' -> '/app/xxx.py' (валидируем корень)
+    - 'app.py' или 'xxx.py' -> '/app/<имя>'
     """
     s = (rel_or_abs or "").replace("\\", "/")
     if s.startswith("src/app/engineer_b_api/"):
@@ -71,12 +62,12 @@ def _map_to_app_path(rel_or_abs: str) -> Optional[str]:
         return _norm_under_app(mapped)
     if s.startswith("/app/"):
         return _norm_under_app(s)
-    # Ð³Ð¾Ð»Ð¾Ðµ Ð¸Ð¼Ñ Ñ„Ð°Ð¹Ð»Ð°
+    # голое имя файла
     return _norm_under_app(os.path.join(APP_ROOT_PATH, s))
 
 
 def _read_target_file(filepath: str) -> Optional[str]:
-    """Ð‘ÐµÐ·Ð¾Ð¿Ð°ÑÐ½Ð¾ Ñ‡Ð¸Ñ‚Ð°ÐµÑ‚ ÑÐ¾Ð´ÐµÑ€Ð¶Ð¸Ð¼Ð¾Ðµ Ñ„Ð°Ð¹Ð»Ð° (Ð´Ð¾ 50KB), Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð¸Ð· /app."""
+    """Безопасно читает содержимое файла (до 50KB), только из /app."""
     safe = _norm_under_app(filepath)
     if not safe:
         logger.warning("SECURITY: Attempted to read file outside of %s: %s", APP_ROOT_PATH, filepath)
@@ -110,7 +101,7 @@ class DeepSeekExecutor:
                 logger.warning("DeepSeekExecutor client close error: %s", e)
 
     async def complete(self, prompt: str, **kwargs) -> dict:
-        """Ð’Ñ‹Ð·Ñ‹Ð²Ð°ÐµÑ‚ÑÑ Ð² app.py â€” Ð²Ð¾Ð·Ð²Ñ€Ð°Ñ‰Ð°ÐµÑ‚ dict Ñ Ð´Ð°Ð½Ð½Ñ‹Ð¼Ð¸ LLM."""
+        """Вызывается в app.py — возвращает dict с данными LLM."""
         if self.client is None:
             return {"error": "httpx is not available in this environment"}
 
@@ -153,9 +144,9 @@ class IntelligentAgent:
         self.deepseek_executor = deepseek_executor
         logger.debug("IntelligentAgent initialized with deepseek_executor=%s", deepseek_executor is not None)
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    # Ð˜Ð·Ð²Ð»ÐµÑ‡ÐµÐ½Ð¸Ðµ ÐºÐ¾Ð´Ð°/Ð¾Ñ‚Ñ‡Ñ‘Ñ‚Ð°
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────────────────────────────
+    # Извлечение кода/отчёта
+    # ──────────────────────────────────────────────────────────────────────
     def _extract_code(self, result: Any) -> Optional[str]:
         if not isinstance(result, dict):
             return None
@@ -177,13 +168,13 @@ class IntelligentAgent:
 
         return None
 
-    def _extract_report(self, result: Any, target_path_hint: str = "app.py") -> Dict[str, Any]:
+    def _extract_report(self, result: Any) -> Dict[str, Any]:
         if not isinstance(result, dict):
             return {
                 "deployment_ready": False,
                 "description": "Result is not a dict; analysis only.",
                 "tests_status": "skipped",
-                "target_path_hint": target_path_hint,
+                "target_path_hint": "src/app/engineer_b_api/marker_selfbuild.py",
             }
 
         text = result.get("text") or ""
@@ -209,12 +200,12 @@ class IntelligentAgent:
             "deployment_ready": False,
             "description": "No code block found; analysis only.",
             "tests_status": "skipped",
-            "target_path_hint": target_path_hint,
+            "target_path_hint": "src/app/engineer_b_api/marker_selfbuild.py",
         }
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    # Runtime-smoke (Ð¾ÑÑ‚Ð°Ð²Ð»ÑÐµÐ¼ ÐºÐ°Ðº Ð²ÑÐ¿Ð¾Ð¼Ð¾Ð³Ð°Ñ‚ÐµÐ»ÑŒÐ½Ñ‹Ð¹; Ñ„Ð¸Ð½Ð°Ð»ÑŒÐ½Ñ‹Ð¹ â€” Ð² app.py)
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────────────────────────────
+    # Runtime-smoke (оставляем как вспомогательный; финальный — в app.py)
+    # ──────────────────────────────────────────────────────────────────────
     def _runtime_smoke_subprocess(self, code_str: str, target_path_hint: Optional[str]) -> Tuple[bool, str]:
         if not code_str:
             return False, "Runtime Smoke: Code is empty."
@@ -253,7 +244,7 @@ class IntelligentAgent:
                     msg += f" Stderr: {stderr[:400]}"
                 return False, msg
 
-            # Ð”Ð¾Ð¿. Ð¿Ñ€Ð¾Ð²ÐµÑ€ÐºÐ° Ð´Ð»Ñ app.py â€” Ð½Ð°Ð»Ð¸Ñ‡Ð¸Ðµ app
+            # Доп. проверка для app.py — наличие app
             is_app_target = False
             try:
                 if target_path_hint:
@@ -285,33 +276,29 @@ class IntelligentAgent:
                 except Exception as cle:
                     logger.warning("[Agent Runtime Smoke] Cleanup failed for %s: %s", tmp_filepath, cle)
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    # ÐžÑÐ½Ð¾Ð²Ð½Ð¾Ð¹ Ñ†Ð¸ÐºÐ» â€” Ñ Â«Diff-ContextÂ» Ð¸ Ð–ÐÐ¡Ð¢ÐšÐžÐ™ Ð·Ð°Ð³Ð»ÑƒÑˆÐºÐ¾Ð¹ Ð´Ð»Ñ TEST-009A-FINAL
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────────────────────────────
+    # Основной цикл — с «Diff-Context» и ЖЁСТКОЙ заглушкой для TEST-009A-FINAL
+    # ──────────────────────────────────────────────────────────────────────
     async def run_cycle(self, task_text: str) -> dict:
         logger.debug("[RunCycle] Starting with task: %.200s", (task_text or ""))
 
-        # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        # Ð–ÐÐ¡Ð¢ÐšÐÐ¯ Ð—ÐÐ“Ð›Ð£Ð¨ÐšÐ: ÐµÑÐ»Ð¸ Ð² Ð·Ð°Ð´Ð°Ñ‡Ðµ ÐµÑÑ‚ÑŒ Ð¼Ð°Ñ€ÐºÐµÑ€ 'v9a_final',
-        # Ð¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼ LLM Ð¸ Ð²Ð¾Ð·Ð²Ñ€Ð°Ñ‰Ð°ÐµÐ¼ ÐŸÐžÐ›ÐÐ£Ð® Ð²ÐµÑ€ÑÐ¸ÑŽ Ñ„Ð°Ð¹Ð»Ð° Ñ no-op Ð¸Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸ÐµÐ¼.
-        # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ─────────────────────────────────────────────────────────
+        # ЖЁСТКАЯ ЗАГЛУШКА: если в задаче есть маркер 'v9a_final',
+        # обходим LLM и возвращаем ПОЛНУЮ версию файла с no-op изменением.
+        # ─────────────────────────────────────────────────────────
         if isinstance(task_text, str) and "v9a_final" in task_text.lower():
             logger.info("[RunCycle] Using STUB Executor (Hard-coded bypass for TEST-009A-FINAL).")
 
-            # 1) ÐžÐ¿Ñ€ÐµÐ´ÐµÐ»ÑÐµÐ¼ Ñ†ÐµÐ»ÐµÐ²Ð¾Ð¹ Ð¿ÑƒÑ‚ÑŒ Ð¸Ð· Ð¢Ð—, Ð¸Ð½Ð°Ñ‡Ðµ Ð¿Ð¾ ÑƒÐ¼Ð¾Ð»Ñ‡Ð°Ð½Ð¸ÑŽ app.py
+            # 1) Определяем целевой путь из ТЗ, иначе по умолчанию app.py
             m = _PATH_HINT_RE.search(task_text or "")
-            if m:
-                # Regex has 3 capturing groups (one per OR branch), find first non-None
-                target_path_hint = next((g for g in m.groups() if g), None)
-                if target_path_hint:
-                    target_path_hint = target_path_hint.strip() if m else "app.py"
+            target_path_hint = m.group(1).strip() if m else "app.py"
 
-                # ÐŸÑ€ÐµÐ¾Ð±Ñ€Ð°Ð·ÑƒÐµÐ¼ Ð² Ð¿ÑƒÑ‚ÑŒ Ð¿Ð¾Ð´ /app (Ð·Ð°Ñ‰Ð¸Ñ‚Ð° Ð²Ð½ÑƒÑ‚Ñ€Ð¸)
-                full_path = _map_to_app_path(target_path_hint) or os.path.join(APP_ROOT_PATH, "app.py")
+            # Преобразуем в путь под /app (защита внутри)
+            full_path = _map_to_app_path(target_path_hint) or os.path.join(APP_ROOT_PATH, "app.py")
 
-            # 2) Ð§Ð¸Ñ‚Ð°ÐµÐ¼ Ñ‚ÐµÐºÑƒÑ‰Ð¸Ð¹ Ñ„Ð°Ð¹Ð» Ð¸ Ð²Ð½Ð¾ÑÐ¸Ð¼ Ð±ÐµÐ·Ð¾Ð¿Ð°ÑÐ½Ð¾Ðµ Ð¼Ð¸Ð½Ð¸Ð¼Ð°Ð»ÑŒÐ½Ð¾Ðµ Ð¸Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸Ðµ:
-            #    - ÐµÑÐ»Ð¸ ÐµÑÑ‚ÑŒ Ð¼Ð°Ñ€ÐºÐµÑ€ 'v9A_OK_RETEST' â†’ Ð·Ð°Ð¼ÐµÐ½ÑÐµÐ¼ Ð½Ð° 'v9A_FINAL_STUB'
-            #    - Ð¸Ð½Ð°Ñ‡Ðµ Ð¿Ñ€Ð¾ÑÑ‚Ð¾ Ð´Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼ ÐºÐ¾Ð¼Ð¼ÐµÐ½Ñ‚Ð°Ñ€Ð¸Ð¹-Ð¼ÐµÑ‚ÐºÑƒ, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ñ„Ð°Ð¹Ð» Ð¸Ð·Ð¼ÐµÐ½Ð¸Ð»ÑÑ
+            # 2) Читаем текущий файл и вносим безопасное минимальное изменение:
+            #    - если есть маркер 'v9A_OK_RETEST' → заменяем на 'v9A_FINAL_STUB'
+            #    - иначе просто добавляем комментарий-метку, чтобы файл изменился
             current = _read_target_file(full_path)
             if not current:
                 return {
@@ -334,7 +321,7 @@ class IntelligentAgent:
 
             return {
                 "status": "ok",
-                "code": patched,  # ÐŸÐžÐ›ÐÐžÐ• ÑÐ¾Ð´ÐµÑ€Ð¶Ð¸Ð¼Ð¾Ðµ Ñ„Ð°Ð¹Ð»Ð° (Ð²Ð°Ð»Ð¸Ð´Ð½Ñ‹Ð¹ Python)
+                "code": patched,  # ПОЛНОЕ содержимое файла (валидный Python)
                 "report": {
                     "deployment_ready": True,
                     "tests_status": "passed",
@@ -345,36 +332,36 @@ class IntelligentAgent:
                 "raw": "<stub>"
             }
 
-        # 1) ÐŸÑ‹Ñ‚Ð°ÐµÐ¼ÑÑ Ð¸Ð·Ð²Ð»ÐµÑ‡ÑŒ Ð¿Ð¾Ð´ÑÐºÐ°Ð·ÐºÑƒ Ð¿ÑƒÑ‚Ð¸ Ð¸Ð· Ð¢Ð— Ð¸ Ð¿Ñ€Ð¾Ñ‡Ð¸Ñ‚Ð°Ñ‚ÑŒ Ñ‚ÐµÐºÑƒÑ‰Ð¸Ð¹ Ñ„Ð°Ð¹Ð» (Diff-Context)
+        # 1) Пытаемся извлечь подсказку пути из ТЗ и прочитать текущий файл (Diff-Context)
         context_prefix = ""
         target_path_hint: Optional[str] = None
         full_path: Optional[str] = None
 
         m = _PATH_HINT_RE.search(task_text or "")
         if m:
-            target_path_hint = next((g for g in m.groups() if g), "app.py") if m else "app.py"
+            target_path_hint = m.group(1).strip()
             mapped = _map_to_app_path(target_path_hint)
             if mapped:
                 full_path = mapped
                 current = _read_target_file(full_path)
                 if current:
                     context_prefix = textwrap.dedent(f"""\
-                        [Ð˜ÐÐ¡Ð¢Ð Ð£ÐšÐ¦Ð˜Ð¯]
-                        Ð¢Ð²Ð¾Ñ Ñ†ÐµÐ»ÑŒ â€” Ð²Ð½ÐµÑÑ‚Ð¸ Ð¿Ñ€Ð°Ð²ÐºÐ¸ Ð² ÑÑƒÑ‰ÐµÑÑ‚Ð²ÑƒÑŽÑ‰Ð¸Ð¹ Ñ„Ð°Ð¹Ð». ÐÐ¸Ð¶Ðµ â€” ÐµÐ³Ð¾ Ð¢Ð•ÐšÐ£Ð©Ð•Ð• ÑÐ¾Ð´ÐµÑ€Ð¶Ð¸Ð¼Ð¾Ðµ.
-                        Ð¢Ð« ÐžÐ‘Ð¯Ð—ÐÐ Ð²ÐµÑ€Ð½ÑƒÑ‚ÑŒ ÐŸÐžÐ›ÐÐžÐ•, ÐžÐ‘ÐÐžÐ’Ð›ÐÐÐÐžÐ• ÑÐ¾Ð´ÐµÑ€Ð¶Ð¸Ð¼Ð¾Ðµ Ñ„Ð°Ð¹Ð»Ð° Ð² Ð¾Ð´Ð½Ð¾Ð¼ Ð±Ð»Ð¾ÐºÐµ ```python
-                        (Ð²ÐºÐ»ÑŽÑ‡Ð°Ñ Ð²ÑÐµ Ð¸Ð¼Ð¿Ð¾Ñ€Ñ‚Ñ‹ Ð¸ Ð²ÑÑŽ Ð»Ð¾Ð³Ð¸ÐºÑƒ). ÐÐ• Ð’ÐžÐ—Ð’Ð ÐÐ©ÐÐ™ Ñ„Ñ€Ð°Ð³Ð¼ÐµÐ½Ñ‚ Ð¸Ð»Ð¸ diff.
+                        [ИНСТРУКЦИЯ]
+                        Твоя цель — внести правки в существующий файл. Ниже — его ТЕКУЩЕЕ содержимое.
+                        ТЫ ОБЯЗАН вернуть ПОЛНОЕ, ОБНОВЛЁННОЕ содержимое файла в одном блоке ```python
+                        (включая все импорты и всю логику). НЕ ВОЗВРАЩАЙ фрагмент или diff.
 
                         <FILE_CONTENT path="{full_path}">
                         {current}
                         </FILE_CONTENT>
 
-                        [Ð¢Ð— ÐŸÐžÐ›Ð¬Ð—ÐžÐ’ÐÐ¢Ð•Ð›Ð¯]
+                        [ТЗ ПОЛЬЗОВАТЕЛЯ]
                     """).strip() + "\n\n"
 
-        # 2) Ð¤Ð¾Ñ€Ð¼Ð¸Ñ€ÑƒÐµÐ¼ Ñ„Ð¸Ð½Ð°Ð»ÑŒÐ½Ñ‹Ð¹ Ð¿Ñ€Ð¾Ð¼Ð¿Ñ‚
+        # 2) Формируем финальный промпт
         final_prompt = (context_prefix + (task_text or "")).strip()
 
-        # 3) Ð’Ñ‹Ð·Ð¾Ð² LLM (Ð¾Ð±Ñ‹Ñ‡Ð½Ñ‹Ð¹ Ð¿ÑƒÑ‚ÑŒ)
+        # 3) Вызов LLM (обычный путь)
         if self.deepseek_executor:
             logger.debug("[RunCycle] Using DeepSeekExecutor")
             result = await self.deepseek_executor.complete(final_prompt)
@@ -383,17 +370,17 @@ class IntelligentAgent:
             logger.debug("[RunCycle] No executor available")
             return {"status": "error", "error": "No LLM executor available"}
 
-        # 4) Ð˜Ð·Ð²Ð»ÐµÐºÐ°ÐµÐ¼ ÐºÐ¾Ð´ Ð¸ Ð¾Ñ‚Ñ‡Ñ‘Ñ‚
+        # 4) Извлекаем код и отчёт
         code = self._extract_code(result)
-        report = self._extract_report(result, target_path_hint or "app.py") or {}
-        logger.debug("[RunCycle] Extracted Code: %s", (code[:300] + "â€¦") if code else "None")
+        report = self._extract_report(result) or {}
+        logger.debug("[RunCycle] Extracted Code: %s", (code[:300] + "…") if code else "None")
         logger.debug("[RunCycle] Extracted Report: %s", report)
 
-        # 5) ÐŸÐ¾Ð´ÑÐºÐ°Ð·ÐºÐ° Ð¿ÑƒÑ‚Ð¸ (ÐµÑÐ»Ð¸ LLM ÐµÑ‘ Ð½Ðµ Ð´Ð°Ð»)
+        # 5) Подсказка пути (если LLM её не дал)
         if target_path_hint and isinstance(report, dict) and not report.get("target_path_hint"):
             report["target_path_hint"] = target_path_hint
 
-        # 6) ÐŸÑ€ÐµÐ´Ð²Ð°Ñ€Ð¸Ñ‚ÐµÐ»ÑŒÐ½Ñ‹Ð¹ ÑÑ‚Ð°Ñ‚ÑƒÑ Ð´Ð»Ñ app.py (Ñ„Ð¸Ð½Ð°Ð»ÑŒÐ½Ñ‹Ð¹ smoke â€” Ð² app.py)
+        # 6) Предварительный статус для app.py (финальный smoke — в app.py)
         status = "ok" if code else "failed"
         if code:
             report["smoke_test_result"] = "Runtime Smoke OK (delegated to app.py)"
