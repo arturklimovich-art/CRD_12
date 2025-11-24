@@ -141,7 +141,9 @@ SELECT
   o4h.low          AS low_4h,
   o4h.close        AS close_4h,
   o4h.volume       AS volume_4h,
-  o1h.close        AS close_1h
+  o1h.close        AS close_1h,
+  NULL::DOUBLE PRECISION AS atr_14_1h,
+  NULL::DOUBLE PRECISION AS sma_50_4h
 FROM market.ohlcv o4h
 LEFT JOIN market.ohlcv o1h
   ON o1h.symbol = o4h.symbol AND o1h.tf = '1h' AND o1h.ts = o4h.ts
