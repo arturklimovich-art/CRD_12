@@ -1,0 +1,24 @@
+services:
+  tradlab_postgres:
+    image: postgres:16-alpine
+    container_name: tradlab_postgres
+    environment:
+      POSTGRES_DB: tradlab_db
+      POSTGRES_USER: tradlab
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tradlab_secret_2024}
+      TZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./DB/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradlab -d tradlab_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: tradlab_postgres_data
