@@ -31,7 +31,7 @@ class Signal:
     tp2: float
     tsl: Optional[float] = None
     valid_until: Optional[datetime] = None
-    meta: dict = None
+    meta: Optional[dict] = None
     
     def __post_init__(self):
         """Валидация после инициализации"""

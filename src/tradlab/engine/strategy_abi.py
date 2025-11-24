@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import pandas as pd
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from .signal import Signal
 
 
@@ -58,7 +58,7 @@ class BaseStrategy(ABC):
         if not isinstance(self.params, dict):
             raise ValueError("params must be a dictionary")
     
-    def get_required_features(self) -> list[str]:
+    def get_required_features(self) -> List[str]:
         """
         Возвращает список необходимых фич для стратегии
         
