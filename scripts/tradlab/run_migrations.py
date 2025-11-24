@@ -2,8 +2,8 @@
 """
 TradLab Migration Runner
 
-Runs SQL migrations from DB/migrations/ folder.
-Usage: python scripts/run_migrations.py
+Runs SQL migrations from DB/tradlab_migrations/ folder.
+Usage: python scripts/tradlab/run_migrations.py
 """
 import os
 import re
@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 # Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 import psycopg2
 from dotenv import load_dotenv
@@ -23,19 +23,19 @@ def mask_db_url(db_url: str) -> str:
 
 
 def run_migrations():
-    """Run all SQL migrations from DB/migrations folder."""
+    """Run all SQL migrations from DB/tradlab_migrations folder."""
     # Load environment variables
-    load_dotenv()
+    load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env.tradlab")
 
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
         print("❌ ERROR: DATABASE_URL not found in environment")
-        print("   Please set DATABASE_URL in .env file")
+        print("   Please set DATABASE_URL in .env.tradlab file")
         sys.exit(1)
 
     # Find migrations directory
-    project_root = Path(__file__).parent.parent
-    migrations_dir = project_root / "DB" / "migrations"
+    project_root = Path(__file__).parent.parent.parent
+    migrations_dir = project_root / "DB" / "tradlab_migrations"
 
     if not migrations_dir.exists():
         print(f"❌ ERROR: Migrations directory not found: {migrations_dir}")

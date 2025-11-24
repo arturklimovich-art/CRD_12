@@ -18,36 +18,36 @@ docker compose -f docker-compose.tradlab.yml ps
 
 ```bash
 # Copy example environment file
-cp .env.example .env
+cp .env.tradlab.example .env.tradlab
 
-# Edit .env with your settings (optional)
+# Edit .env.tradlab with your settings (optional)
 ```
 
 ### 3. Run Migrations
 
 ```bash
 # Apply database migrations
-python scripts/run_migrations.py
+python scripts/tradlab/run_migrations.py
 ```
 
 ### 4. Load Historical Data
 
 ```bash
 # Load ETH/USDT data from 2024
-python scripts/load_data.py --symbol ETH/USDT --start 2024-01-01
+python scripts/tradlab/load_data.py --symbol ETH/USDT --start 2024-01-01
 
 # Load specific timeframes
-python scripts/load_data.py --symbol ETH/USDT --timeframes 1h,4h --start 2024-01-01
+python scripts/tradlab/load_data.py --symbol ETH/USDT --timeframes 1h,4h --start 2024-01-01
 ```
 
 ### 5. Run Backtest
 
 ```bash
 # Run STR-100 backtest
-python scripts/run_backtest.py --start 2024-01-01 --end 2024-12-31
+python scripts/tradlab/run_backtest.py --start 2024-01-01 --end 2024-12-31
 
 # With custom capital
-python scripts/run_backtest.py --start 2024-01-01 --end 2024-12-31 --capital 50000
+python scripts/tradlab/run_backtest.py --start 2024-01-01 --end 2024-12-31 --capital 50000
 ```
 
 ---
@@ -56,10 +56,10 @@ python scripts/run_backtest.py --start 2024-01-01 --end 2024-12-31 --capital 500
 
 ### `run_migrations.py`
 
-Executes SQL migrations from `DB/migrations/` folder.
+Executes SQL migrations from `DB/tradlab_migrations/` folder.
 
 **Features:**
-- Connects to PostgreSQL using `DATABASE_URL` from `.env`
+- Connects to PostgreSQL using `DATABASE_URL` from `.env.tradlab`
 - Finds and executes all `.sql` files in order
 - Displays progress and errors
 - Creates schemas: `market`, `lab`
@@ -67,7 +67,7 @@ Executes SQL migrations from `DB/migrations/` folder.
 
 **Usage:**
 ```bash
-python scripts/run_migrations.py
+python scripts/tradlab/run_migrations.py
 ```
 
 ---
@@ -86,10 +86,10 @@ Loads OHLCV data from Binance using `OHLCVCollector`.
 **Examples:**
 ```bash
 # Load ETH/USDT 1h and 4h data from 2024
-python scripts/load_data.py --symbol ETH/USDT --start 2024-01-01
+python scripts/tradlab/load_data.py --symbol ETH/USDT --start 2024-01-01
 
 # Load BTC/USDT 1h only from 2023
-python scripts/load_data.py --symbol BTC/USDT --timeframes 1h --start 2023-01-01
+python scripts/tradlab/load_data.py --symbol BTC/USDT --timeframes 1h --start 2023-01-01
 ```
 
 ---
@@ -125,10 +125,10 @@ Runs STR-100 backtest using `BacktesterV1`.
 **Examples:**
 ```bash
 # Run backtest for 2024
-python scripts/run_backtest.py --start 2024-01-01 --end 2024-12-31
+python scripts/tradlab/run_backtest.py --start 2024-01-01 --end 2024-12-31
 
 # Run with custom capital
-python scripts/run_backtest.py --start 2024-01-01 --end 2024-06-30 --capital 50000
+python scripts/tradlab/run_backtest.py --start 2024-01-01 --end 2024-06-30 --capital 50000
 ```
 
 ---
@@ -161,7 +161,7 @@ docker compose -f docker-compose.tradlab.yml down -v
 docker exec -it tradlab_postgres psql -U tradlab -d tradlab_db
 
 # Using external psql (replace YOUR_PASSWORD_HERE with actual password)
-psql postgresql://tradlab:YOUR_PASSWORD_HERE@localhost:5432/tradlab_db
+psql postgresql://tradlab:YOUR_PASSWORD_HERE@localhost:5434/tradlab_db
 ```
 
 ---
@@ -249,7 +249,7 @@ LIMIT 10;
 
 3. **Verify connection string:**
    ```bash
-   cat .env | grep DATABASE_URL
+   cat .env.tradlab | grep DATABASE_URL
    ```
 
 ### Migration Errors
@@ -261,7 +261,7 @@ LIMIT 10;
 
 2. **Re-run migrations (idempotent):**
    ```bash
-   python scripts/run_migrations.py
+   python scripts/tradlab/run_migrations.py
    ```
 
 ### Data Loading Issues
