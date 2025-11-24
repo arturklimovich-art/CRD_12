@@ -1,0 +1,254 @@
+﻿{
+    "project_structure":  {
+                              "branch":  "feature/roadmap-arturklimovich-20251117",
+                              "domains":  [
+                                              "ENG",
+                                              "TL"
+                                          ],
+                              "database":  {
+                                               "port":  5433,
+                                               "host":  "localhost",
+                                               "user":  "crd_user",
+                                               "schema":  "eng_it",
+                                               "dbname":  "crd12"
+                                           },
+                              "containers":  [
+                                                 "crd12_engineer_b_api",
+                                                 "crd12_pgvector"
+                                             ],
+                              "repo":  "CRD_12"
+                          },
+    "next_steps":  [
+                       {
+                           "priority":  1,
+                           "title":  "Парсинг структуры roadmap (blocks → tasks → steps)",
+                           "task":  "E1-B0-T4",
+                           "status":  "planned"
+                       },
+                       {
+                           "priority":  2,
+                           "title":  "Обратная синхронизация БД → YAML",
+                           "task":  "E1-B0-T5",
+                           "status":  "planned"
+                       },
+                       {
+                           "priority":  3,
+                           "title":  "S-0/DoD ? ????? ??????????????? ??? TL",
+                           "task":  "E1-B1-T1",
+                           "status":  "planned"
+                       },
+                       {
+                           "priority":  4,
+                           "title":  "API/CLI для синхронизации домена TL",
+                           "task":  "T3",
+                           "status":  "planned"
+                       },
+                       {
+                           "priority":  5,
+                           "title":  "Конфиг и клиент демо-биржи",
+                           "task":  "T1",
+                           "status":  "planned"
+                       }
+                   ],
+    "recent_changes":  [
+                           {
+                               "task_code":  "E2-TL-B0-T3",
+                               "timestamp":  "2025-11-24T13:01:25Z",
+                               "description":  "Интеграция TradLab с SoT (синхронизация roadmap)",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "E2-TL-B0-T1",
+                               "timestamp":  "2025-11-24T12:51:16Z",
+                               "description":  "Quick Start: Smoke-тест TradLab",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "E2-TL-B0-T2",
+                               "timestamp":  "2025-11-24T12:51:16Z",
+                               "description":  "Quick Start: Минимальный бэктест",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "E1-B0-T1",
+                               "timestamp":  "2025-11-23T18:52:01Z",
+                               "description":  "Проектирование схемы БД для SoT",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "E1-B0-T2",
+                               "timestamp":  "2025-11-23T18:52:01Z",
+                               "description":  "Миграция и тестирование схемы БД",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "E1-B0-T3",
+                               "timestamp":  "2025-11-23T18:52:01Z",
+                               "description":  "Создание модуля синхронизации YAML ↔ PostgreSQL",
+                               "action":  "completed_task"
+                           }
+                       ],
+    "snapshot_metadata":  {
+                              "next_task":  "E1-B0-T4",
+                              "chat_id":  "20251124_145756",
+                              "last_task":  "E2-TL-B0-T3",
+                              "created_at":  "2025-11-24T14:57:56Z",
+                              "session_summary":  "✅ Завершена синхронизация roadmap домена TL (9 блоков, 24 задачи, 51 шаг). ✅ Создана и протестирована система моментального контекста. ✅ Исправлена кодировка UTF-8. Система полностью работает!",
+                              "user":  "arturklimovich-art"
+                          },
+    "key_commands":  {
+                         "check_tasks":  "docker exec -i crd12_pgvector psql -U crd_user -d crd12 -c \"SELECT * FROM eng_it.roadmap_tasks rt JOIN eng_it.roadmap_blocks rb ON rt.block_id=rb.id WHERE rb.domain_code=\u0027TL\u0027\"",
+                         "sync_roadmap":  "Sync-CoreCatalog",
+                         "load_context":  "powershell -File \u0027agents/EngineersIT.Bot/Load-Context.ps1\u0027",
+                         "quick_start":  "powershell -File \u0027agents/EngineersIT.Bot/Quick-Start.ps1\u0027",
+                         "docker_exec":  "docker exec -it crd12_engineer_b_api sh",
+                         "get_domain":  "Get-Domain -DomainCode \u0027TL\u0027"
+                     },
+    "known_issues":  {
+                         "value":  [
+                                       {
+                                           "issue":  "YAMLSyncEngine Ð½Ðµ ÑÐ¸Ð½Ñ…Ñ€Ð¾Ð½Ð¸Ð·Ð¸Ñ€ÑƒÐµÑ‚ ÑˆÐ°Ð³Ð¸ Ð´Ð»Ñ Ð±Ð»Ð¾ÐºÐ¾Ð² B1-B8",
+                                           "status":  "workaround_applied",
+                                           "workaround":  "Ð ÑƒÑ‡Ð½Ð°Ñ Ð²ÑÑ‚Ð°Ð²ÐºÐ° ÑˆÐ°Ð³Ð¾Ð² Ñ‡ÐµÑ€ÐµÐ· SQL ÑÐºÑ€Ð¸Ð¿Ñ‚Ñ‹ (insert_steps_b0.sql, insert_steps_b1_b8.sql)",
+                                           "discovered_at":  "2025-11-24T11:50:00Z",
+                                           "affected_components":  [
+                                                                       "YAMLSyncEngine",
+                                                                       "roadmap_steps"
+                                                                   ],
+                                           "severity":  "medium"
+                                       }
+                                   ],
+                         "Count":  1
+                     },
+    "roadmap_state":  {
+                          "TL":  {
+                                     "blocks":  9,
+                                     "tasks":  24,
+                                     "steps":  51,
+                                     "blocks_detail":  [
+                                                           {
+                                                               "completed_tasks":  "E1-B0-T1",
+                                                               "code":  "B0",
+                                                               "title":  "Модуль Источника Истины (SoT) для TradLab",
+                                                               "status":  "in_progress",
+                                                               "steps":  22,
+                                                               "planned_tasks":  "E1-B0-T3",
+                                                               "in_progress_tasks":  "E1-B0-T2",
+                                                               "tasks":  11
+                                                           },
+                                                           {
+                                                               "completed_tasks":  {
+
+                                                                                   },
+                                                               "code":  "B1",
+                                                               "title":  "Управление качеством и контракты (TL L1)",
+                                                               "status":  "planned",
+                                                               "steps":  3,
+                                                               "planned_tasks":  "E1-B1-T1",
+                                                               "in_progress_tasks":  {
+
+                                                                                     },
+                                                               "tasks":  1
+                                                           },
+                                                           {
+                                                               "completed_tasks":  {
+
+                                                                                   },
+                                                               "code":  "B2",
+                                                               "title":  "Данные и БД (TL L1)",
+                                                               "status":  "planned",
+                                                               "steps":  5,
+                                                               "planned_tasks":  "E1-B2-T1",
+                                                               "in_progress_tasks":  {
+
+                                                                                     },
+                                                               "tasks":  2
+                                                           },
+                                                           {
+                                                               "completed_tasks":  {
+
+                                                                                   },
+                                                               "code":  "B3",
+                                                               "title":  "Strategy-ABI и STR-100 ChainFlow (ETH)",
+                                                               "status":  "planned",
+                                                               "steps":  5,
+                                                               "planned_tasks":  "E1-B3-T1",
+                                                               "in_progress_tasks":  {
+
+                                                                                     },
+                                                               "tasks":  2
+                                                           },
+                                                           {
+                                                               "completed_tasks":  {
+
+                                                                                   },
+                                                               "code":  "B4",
+                                                               "title":  "Бэктест и метрики",
+                                                               "status":  "planned",
+                                                               "steps":  4,
+                                                               "planned_tasks":  "E1-B4-T1",
+                                                               "in_progress_tasks":  {
+
+                                                                                     },
+                                                               "tasks":  2
+                                                           },
+                                                           {
+                                                               "completed_tasks":  {
+
+                                                                                   },
+                                                               "code":  "B5",
+                                                               "title":  "Risk-Gate v1",
+                                                               "status":  "planned",
+                                                               "steps":  3,
+                                                               "planned_tasks":  "E1-B5-T1",
+                                                               "in_progress_tasks":  {
+
+                                                                                     },
+                                                               "tasks":  2
+                                                           },
+                                                           {
+                                                               "completed_tasks":  {
+
+                                                                                   },
+                                                               "code":  "B6",
+                                                               "title":  "Оркестратор v1 (TL)",
+                                                               "status":  "planned",
+                                                               "steps":  2,
+                                                               "planned_tasks":  "E1-B6-T1",
+                                                               "in_progress_tasks":  {
+
+                                                                                     },
+                                                               "tasks":  1
+                                                           },
+                                                           {
+                                                               "completed_tasks":  {
+
+                                                                                   },
+                                                               "code":  "B7",
+                                                               "title":  "Наблюдаемость v1",
+                                                               "status":  "planned",
+                                                               "steps":  2,
+                                                               "planned_tasks":  "E1-B7-T1",
+                                                               "in_progress_tasks":  {
+
+                                                                                     },
+                                                               "tasks":  1
+                                                           },
+                                                           {
+                                                               "completed_tasks":  {
+
+                                                                                   },
+                                                               "code":  "B8",
+                                                               "title":  "Demo-Executor v1 (подключение STR-100 к демо-счёту)",
+                                                               "status":  "planned",
+                                                               "steps":  5,
+                                                               "planned_tasks":  "E1-B8-T1",
+                                                               "in_progress_tasks":  {
+
+                                                                                     },
+                                                               "tasks":  2
+                                                           }
+                                                       ]
+                                 }
+                      }
+}

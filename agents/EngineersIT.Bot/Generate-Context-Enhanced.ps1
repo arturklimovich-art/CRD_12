@@ -1,8 +1,6 @@
-# ============================================================================
+﻿# ============================================================================
 # agents/EngineersIT.Bot/Generate-Context-Enhanced.ps1
 # Генерация полного JSON контекста сессии для быстрого восстановления
-# Автор: arturklimovich-art
-# Дата: 2025-11-24
 # ============================================================================
 
 param(
@@ -10,86 +8,67 @@ param(
     [string]$User = "arturklimovich-art",
     [string]$LastTask = "",
     [string]$SessionSummary = "",
-    [string]$DBHost = "localhost",
-    [int]$DBPort = 5433,
     [string]$DBName = "crd12",
     [string]$DBUser = "crd_user",
     [string]$DBPassword = "crd12"
 )
 
-Write-Host "🔄 Генерация контекста сессии..." -ForegroundColor Cyan
+Write-Host "
+🔄 Генерация контекста сессии..." -ForegroundColor Cyan
 
-# ============================================================================
-# 1. Получить текущую ветку Git
-# ============================================================================
+# Установка кодировки UTF-8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$env:LANG = "en_US.UTF-8"
+chcp 65001 > $null
+
+# Получить текущую ветку Git
 try {
     $currentBranch = git rev-parse --abbrev-ref HEAD 2>$null
-    if (-not $currentBranch) {
-        $currentBranch = "unknown"
-    }
+    if (-not $currentBranch) { $currentBranch = "unknown" }
 } catch {
     $currentBranch = "unknown"
 }
 
-# ============================================================================
-# 2. Генерация chat_id и timestamp
-# ============================================================================
+# Генерация timestamp и chat_id
 $timestamp = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
 $chatId = Get-Date -Format "yyyyMMdd_HHmmss"
 
-# ============================================================================
-# 3. SQL запросы для получения данных из БД
-# ============================================================================
-$env:PGPASSWORD = $DBPassword
-
-# Общая статистика roadmap
+# SQL: Общая статистика roadmap
 $statsQuery = @"
-SELECT 
-    'blocks' AS entity, COUNT(*) AS total
-FROM eng_it.roadmap_blocks WHERE domain_code = 'TL'
+SELECT 'blocks' AS entity, COUNT(*) AS total FROM eng_it.roadmap_blocks WHERE domain_code = 'TL'
 UNION ALL
-SELECT 'tasks' AS entity, COUNT(*) AS total
-FROM eng_it.roadmap_tasks rt
-JOIN eng_it.roadmap_blocks rb ON rt.block_id = rb.id
-WHERE rb.domain_code = 'TL'
+SELECT 'tasks' AS entity, COUNT(*) AS total FROM eng_it.roadmap_tasks rt JOIN eng_it.roadmap_blocks rb ON rt.block_id = rb.id WHERE rb.domain_code = 'TL'
 UNION ALL
-SELECT 'steps' AS entity, COUNT(*) AS total
-FROM eng_it.roadmap_steps rs
-JOIN eng_it.roadmap_tasks rt ON rs.task_id = rt.id
-JOIN eng_it.roadmap_blocks rb ON rt.block_id = rb.id
-WHERE rb.domain_code = 'TL';
+SELECT 'steps' AS entity, COUNT(*) AS total FROM eng_it.roadmap_steps rs JOIN eng_it.roadmap_tasks rt ON rs.task_id = rt.id JOIN eng_it.roadmap_blocks rb ON rt.block_id = rb.id WHERE rb.domain_code = 'TL';
 "@
 
-$statsResult = $statsQuery | docker exec -i crd12_pgvector psql -h localhost -p $DBPort -U $DBUser -d $DBName -t -A -F'|'
+Write-Host "📊 Получение статистики roadmap..." -ForegroundColor Yellow
+$statsResult = $statsQuery | docker exec -i crd12_pgvector psql -U $DBUser -d $DBName -t -A -F'|'
 
 # Парсинг статистики
-$blocks = 0
-$tasks = 0
-$steps = 0
+$blocks = 0; $tasks = 0; $steps = 0
 $statsResult -split "`n" | ForEach-Object {
     if ($_ -match "blocks\|(\d+)") { $blocks = [int]$matches[1] }
     if ($_ -match "tasks\|(\d+)") { $tasks = [int]$matches[1] }
     if ($_ -match "steps\|(\d+)") { $steps = [int]$matches[1] }
 }
 
-# Детализация по блокам
+# SQL: Детализация по блокам
 $blocksQuery = @"
-SELECT 
-    rb.code, rb.title, rb.status,
-    COUNT(DISTINCT rt.id) AS tasks,
-    COUNT(rs.id) AS steps,
-    STRING_AGG(CASE WHEN rt.status = 'done' THEN rt.code END, '|') AS completed_tasks,
-    STRING_AGG(CASE WHEN rt.status = 'in_progress' THEN rt.code END, '|') AS in_progress_tasks,
-    STRING_AGG(CASE WHEN rt.status = 'planned' THEN rt.code END, '|') AS planned_tasks
+SELECT rb.code, rb.title, rb.status, COUNT(DISTINCT rt.id) AS tasks, COUNT(rs.id) AS steps,
+STRING_AGG(CASE WHEN rt.status = 'done' THEN rt.code END, '|') AS completed_tasks,
+STRING_AGG(CASE WHEN rt.status = 'in_progress' THEN rt.code END, '|') AS in_progress_tasks,
+STRING_AGG(CASE WHEN rt.status = 'planned' THEN rt.code END, '|') AS planned_tasks
 FROM eng_it.roadmap_blocks rb
 LEFT JOIN eng_it.roadmap_tasks rt ON rt.block_id = rb.id
 LEFT JOIN eng_it.roadmap_steps rs ON rs.task_id = rt.id
 WHERE rb.domain_code = 'TL'
-GROUP BY rb.code, rb.title, rb.status
-ORDER BY rb.code;
+GROUP BY rb.code, rb.title, rb.status ORDER BY rb.code;
 "@
 
-$blocksResult = $blocksQuery | docker exec -i crd12_pgvector psql -h localhost -p $DBPort -U $DBUser -d $DBName -t -A -F'|'
+Write-Host "📦 Получение детализации по блокам..." -ForegroundColor Yellow
+$blocksResult = $blocksQuery | docker exec -i crd12_pgvector psql -U $DBUser -d $DBName -t -A -F'|'
 
 # Парсинг блоков
 $blocksDetail = @()
@@ -109,20 +88,16 @@ $blocksResult -split "`n" | Where-Object { $_ -and $_ -ne "" } | ForEach-Object 
     }
 }
 
-# Последние изменения
+# SQL: Последние изменения
 $changesQuery = @"
-SELECT 
-    TO_CHAR(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS timestamp,
-    'completed_task' AS action,
-    code AS task_code,
-    title AS description
-FROM eng_it.roadmap_tasks rt
-JOIN eng_it.roadmap_blocks rb ON rt.block_id = rb.id
+SELECT TO_CHAR(rt.updated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS timestamp, 'completed_task' AS action, rt.code AS task_code, rt.title AS description
+FROM eng_it.roadmap_tasks rt JOIN eng_it.roadmap_blocks rb ON rt.block_id = rb.id
 WHERE rb.domain_code = 'TL' AND rt.status = 'done'
 ORDER BY rt.updated_at DESC LIMIT 10;
 "@
 
-$changesResult = $changesQuery | docker exec -i crd12_pgvector psql -h localhost -p $DBPort -U $DBUser -d $DBName -t -A -F'|'
+Write-Host "🔄 Получение последних изменений..." -ForegroundColor Yellow
+$changesResult = $changesQuery | docker exec -i crd12_pgvector psql -U $DBUser -d $DBName -t -A -F'|'
 
 # Парсинг изменений
 $recentChanges = @()
@@ -138,16 +113,16 @@ $changesResult -split "`n" | Where-Object { $_ -and $_ -ne "" } | ForEach-Object
     }
 }
 
-# Следующие задачи
+# SQL: Следующие задачи
 $nextTasksQuery = @"
 SELECT rt.code AS task, rt.title, rt.status, rt.priority
-FROM eng_it.roadmap_tasks rt
-JOIN eng_it.roadmap_blocks rb ON rt.block_id = rb.id
+FROM eng_it.roadmap_tasks rt JOIN eng_it.roadmap_blocks rb ON rt.block_id = rb.id
 WHERE rb.domain_code = 'TL' AND rt.status = 'planned'
 ORDER BY rt.priority ASC, rt.created_at ASC LIMIT 5;
 "@
 
-$nextTasksResult = $nextTasksQuery | docker exec -i crd12_pgvector psql -h localhost -p $DBPort -U $DBUser -d $DBName -t -A -F'|'
+Write-Host "🎯 Получение следующих задач..." -ForegroundColor Yellow
+$nextTasksResult = $nextTasksQuery | docker exec -i crd12_pgvector psql -U $DBUser -d $DBName -t -A -F'|'
 
 # Парсинг следующих задач
 $nextSteps = @()
@@ -164,12 +139,9 @@ $nextTasksResult -split "`n" | Where-Object { $_ -and $_ -ne "" } | ForEach-Obje
     }
 }
 
-# Определить следующую задачу
 $nextTask = if ($nextSteps.Count -gt 0) { $nextSteps[0].task } else { "" }
 
-# ============================================================================
-# 4. Загрузить известные проблемы
-# ============================================================================
+# Загрузить known_issues.json
 $knownIssuesPath = Join-Path $PSScriptRoot "known_issues.json"
 $knownIssues = @()
 if (Test-Path $knownIssuesPath) {
@@ -180,9 +152,7 @@ if (Test-Path $knownIssuesPath) {
     }
 }
 
-# ============================================================================
-# 5. Создать структуру JSON контекста
-# ============================================================================
+# Создать JSON контекст
 $context = @{
     snapshot_metadata = @{
         created_at = $timestamp
@@ -199,7 +169,7 @@ $context = @{
         containers = @("crd12_engineer_b_api", "crd12_pgvector")
         database = @{
             host = "localhost"
-            port = $DBPort
+            port = 5433
             dbname = $DBName
             user = $DBUser
             schema = "eng_it"
@@ -219,24 +189,19 @@ $context = @{
     key_commands = @{
         sync_roadmap = "Sync-CoreCatalog"
         get_domain = "Get-Domain -DomainCode 'TL'"
-        check_tasks = "psql -h localhost -p 5433 -U crd_user -d crd12 -c `"SELECT * FROM eng_it.roadmap_tasks WHERE domain_code='TL'`""
+        check_tasks = "docker exec -i crd12_pgvector psql -U crd_user -d crd12 -c `"SELECT * FROM eng_it.roadmap_tasks rt JOIN eng_it.roadmap_blocks rb ON rt.block_id=rb.id WHERE rb.domain_code='TL'`""
         docker_exec = "docker exec -it crd12_engineer_b_api sh"
         load_context = "powershell -File 'agents/EngineersIT.Bot/Load-Context.ps1'"
         quick_start = "powershell -File 'agents/EngineersIT.Bot/Quick-Start.ps1'"
     }
 }
 
-# ============================================================================
-# 6. Сохранить в файл
-# ============================================================================
+# Сохранить в файл
 $outputPath = Join-Path $PSScriptRoot $OutputFile
 $context | ConvertTo-Json -Depth 10 | Out-File -Encoding UTF8 $outputPath
 
-# ============================================================================
-# 7. Вывод результата
-# ============================================================================
-Write-Host ""
-Write-Host "✅ Контекст сохранён: $OutputFile" -ForegroundColor Green
+# Вывод результата
+Write-Host "`n✅ Контекст сохранён: $OutputFile" -ForegroundColor Green
 Write-Host "📊 Статистика:" -ForegroundColor Cyan
 Write-Host "   - Блоков: $blocks" -ForegroundColor White
 Write-Host "   - Задач: $tasks" -ForegroundColor White
@@ -249,3 +214,6 @@ if ($SessionSummary) {
     Write-Host "📋 Резюме сессии: $SessionSummary" -ForegroundColor Cyan
 }
 Write-Host ""
+
+
+
