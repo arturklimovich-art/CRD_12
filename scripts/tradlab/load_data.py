@@ -3,7 +3,7 @@
 TradLab Data Loader
 
 Loads OHLCV data from Binance using OHLCVCollector.
-Usage: python scripts/load_data.py --symbol ETH/USDT --start 2024-01-01
+Usage: python scripts/tradlab/load_data.py --symbol ETH/USDT --start 2024-01-01
 """
 import argparse
 import os
@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from dotenv import load_dotenv
 
@@ -57,12 +57,12 @@ def main():
     args = parse_args()
 
     # Load environment variables
-    load_dotenv()
+    load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env.tradlab")
 
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
         print("❌ ERROR: DATABASE_URL not found in environment")
-        print("   Please set DATABASE_URL in .env file")
+        print("   Please set DATABASE_URL in .env.tradlab file")
         sys.exit(1)
 
     # Parse timeframes

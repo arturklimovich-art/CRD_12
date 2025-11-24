@@ -3,6 +3,7 @@
 .env.*
 !.env.template
 !.env.example
+!.env.tradlab.example
 secrets/
 *.pem
 *.key
@@ -27,6 +28,7 @@ tmp/
 docker_volumes/
 docker-data/
 postgres_data/
+tradlab_postgres_data/
 
 # Python
 __pycache__/

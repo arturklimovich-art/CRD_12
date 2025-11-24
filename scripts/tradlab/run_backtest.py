@@ -3,7 +3,7 @@
 TradLab Backtest Runner
 
 Runs STR-100 backtest using BacktesterV1.
-Usage: python scripts/run_backtest.py --start 2024-01-01 --end 2024-12-31
+Usage: python scripts/tradlab/run_backtest.py --start 2024-01-01 --end 2024-12-31
 """
 import argparse
 import os
@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 # Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from dotenv import load_dotenv
 
@@ -52,7 +52,7 @@ def parse_args():
         "--capital",
         type=float,
         default=None,
-        help="Initial capital (default: from .env or 10000)"
+        help="Initial capital (default: from .env.tradlab or 10000)"
     )
     return parser.parse_args()
 
@@ -123,12 +123,12 @@ def main():
     args = parse_args()
 
     # Load environment variables
-    load_dotenv()
+    load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env.tradlab")
 
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
         print("❌ ERROR: DATABASE_URL not found in environment")
-        print("   Please set DATABASE_URL in .env file")
+        print("   Please set DATABASE_URL in .env.tradlab file")
         sys.exit(1)
 
     # Get capital from args or environment
