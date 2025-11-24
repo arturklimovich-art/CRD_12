@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.template
+!.env.example
 secrets/
 *.pem
 *.key
@@ -25,6 +26,7 @@ tmp/
 # Docker
 docker_volumes/
 docker-data/
+postgres_data/
 
 # Python
 __pycache__/
