@@ -52,47 +52,71 @@
                    ],
     "recent_changes":  [
                            {
+                               "task_code":  "TL-B2-T1",
+                               "timestamp":  "2025-11-25T02:59:53Z",
+                               "description":  "Database Schema Setup",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "TL-B2-T2",
+                               "timestamp":  "2025-11-25T02:59:53Z",
+                               "description":  "Feature Adapter V1",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "TL-B3-T1",
+                               "timestamp":  "2025-11-25T02:59:53Z",
+                               "description":  "Base Strategy + Signal",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "TL-B3-T2",
+                               "timestamp":  "2025-11-25T02:59:53Z",
+                               "description":  "STR-100 v3.2",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "TL-B4-T1",
+                               "timestamp":  "2025-11-25T02:59:53Z",
+                               "description":  "Backtester V1",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "TL-B4-T2",
+                               "timestamp":  "2025-11-25T02:59:53Z",
+                               "description":  "Metrics Calculator",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "TL-B5-T1",
+                               "timestamp":  "2025-11-25T02:59:53Z",
+                               "description":  "Risk Gate",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "TL-B6-T1",
+                               "timestamp":  "2025-11-25T02:59:53Z",
+                               "description":  "CLI run_backtest.py",
+                               "action":  "completed_task"
+                           },
+                           {
+                               "task_code":  "TL-B7-T1",
+                               "timestamp":  "2025-11-25T02:59:53Z",
+                               "description":  "Results Persistence",
+                               "action":  "completed_task"
+                           },
+                           {
                                "task_code":  "E2-TL-B0-T3",
                                "timestamp":  "2025-11-24T13:01:25Z",
                                "description":  "Интеграция TradLab с SoT (синхронизация roadmap)",
-                               "action":  "completed_task"
-                           },
-                           {
-                               "task_code":  "E2-TL-B0-T1",
-                               "timestamp":  "2025-11-24T12:51:16Z",
-                               "description":  "Quick Start: Smoke-тест TradLab",
-                               "action":  "completed_task"
-                           },
-                           {
-                               "task_code":  "E2-TL-B0-T2",
-                               "timestamp":  "2025-11-24T12:51:16Z",
-                               "description":  "Quick Start: Минимальный бэктест",
-                               "action":  "completed_task"
-                           },
-                           {
-                               "task_code":  "E1-B0-T1",
-                               "timestamp":  "2025-11-23T18:52:01Z",
-                               "description":  "Проектирование схемы БД для SoT",
-                               "action":  "completed_task"
-                           },
-                           {
-                               "task_code":  "E1-B0-T2",
-                               "timestamp":  "2025-11-23T18:52:01Z",
-                               "description":  "Миграция и тестирование схемы БД",
-                               "action":  "completed_task"
-                           },
-                           {
-                               "task_code":  "E1-B0-T3",
-                               "timestamp":  "2025-11-23T18:52:01Z",
-                               "description":  "Создание модуля синхронизации YAML ↔ PostgreSQL",
                                "action":  "completed_task"
                            }
                        ],
     "snapshot_metadata":  {
                               "next_task":  "E1-B0-T4",
-                              "chat_id":  "20251124_152632",
+                              "chat_id":  "20251125_102752",
                               "last_task":  "E2-TL-B0-T3",
-                              "created_at":  "2025-11-24T15:26:32Z",
+                              "created_at":  "2025-11-25T10:27:52Z",
                               "session_summary":  "✅ Работа над проектом CRD_12. Система моментального контекста работает.",
                               "user":  "arturklimovich-art"
                           },
@@ -122,8 +146,8 @@
                      },
     "roadmap_state":  {
                           "TL":  {
-                                     "blocks":  9,
-                                     "tasks":  24,
+                                     "blocks":  15,
+                                     "tasks":  34,
                                      "steps":  51,
                                      "blocks_detail":  [
                                                            {
@@ -246,6 +270,82 @@
                                                                "in_progress_tasks":  {
 
                                                                                      },
+                                                               "tasks":  2
+                                                           },
+                                                           {
+                                                               "completed_tasks":  "TL-B2-T1",
+                                                               "code":  "TL-B2",
+                                                               "title":  "?????? ? ?? (TL L1)",
+                                                               "status":  "done",
+                                                               "steps":  0,
+                                                               "planned_tasks":  {
+
+                                                                                 },
+                                                               "in_progress_tasks":  "TL-B2-T2",
+                                                               "tasks":  2
+                                                           },
+                                                           {
+                                                               "completed_tasks":  "TL-B3-T1",
+                                                               "code":  "TL-B3",
+                                                               "title":  "Strategy-ABI ? STR-100",
+                                                               "status":  "done",
+                                                               "steps":  0,
+                                                               "planned_tasks":  {
+
+                                                                                 },
+                                                               "in_progress_tasks":  "TL-B3-T2",
+                                                               "tasks":  2
+                                                           },
+                                                           {
+                                                               "completed_tasks":  "TL-B4-T1",
+                                                               "code":  "TL-B4",
+                                                               "title":  "??????? ? ???????",
+                                                               "status":  "done",
+                                                               "steps":  0,
+                                                               "planned_tasks":  {
+
+                                                                                 },
+                                                               "in_progress_tasks":  "TL-B4-T2",
+                                                               "tasks":  2
+                                                           },
+                                                           {
+                                                               "completed_tasks":  "TL-B5-T1",
+                                                               "code":  "TL-B5",
+                                                               "title":  "Risk Gate",
+                                                               "status":  "done",
+                                                               "steps":  0,
+                                                               "planned_tasks":  {
+
+                                                                                 },
+                                                               "in_progress_tasks":  {
+
+                                                                                     },
+                                                               "tasks":  1
+                                                           },
+                                                           {
+                                                               "completed_tasks":  "TL-B6-T1",
+                                                               "code":  "TL-B6",
+                                                               "title":  "CLI Interface",
+                                                               "status":  "done",
+                                                               "steps":  0,
+                                                               "planned_tasks":  {
+
+                                                                                 },
+                                                               "in_progress_tasks":  {
+
+                                                                                     },
+                                                               "tasks":  1
+                                                           },
+                                                           {
+                                                               "completed_tasks":  "TL-B7-T1",
+                                                               "code":  "TL-B7",
+                                                               "title":  "???????????????",
+                                                               "status":  "in_progress",
+                                                               "steps":  0,
+                                                               "planned_tasks":  {
+
+                                                                                 },
+                                                               "in_progress_tasks":  "TL-B7-T2",
                                                                "tasks":  2
                                                            }
                                                        ]
