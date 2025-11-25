@@ -27,8 +27,8 @@ class STR100ChainFlowETH(BaseStrategy):
         "k_tsl": 1.0,
         
         # Signal Thresholds
-        "master_long_threshold": 40,
-        "master_short_threshold": -40,
+        "master_long_threshold": 15,
+        "master_short_threshold": -15,
         "lookback_z": 12,
         
         # Veto Filters
