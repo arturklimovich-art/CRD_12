@@ -1,6 +1,9 @@
 ﻿import pandas as pd
 import psycopg2
+import logging
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 class FeatureAdapterV1:
@@ -86,3 +89,50 @@ class FeatureAdapterV1:
         # В L1 просто возвращаем как есть
         # В L2 можно добавить расчёт SMA, ATR, и т.д.
         return df
+    
+    def get_features(self, ts: pd.Timestamp, df: pd.DataFrame = None) -> Optional[pd.Series]:
+        """
+        Get features for a specific timestamp with validation
+        
+        Args:
+            ts: Timestamp to get features for
+            df: Optional DataFrame to search in (if None, will fetch from DB)
+        
+        Returns:
+            Features as Series or None if not found/invalid
+        """
+        try:
+            if df is None:
+                # Fetch from database
+                df = self.fetch_features()
+            
+            # Try to get features for timestamp
+            if ts not in df.index:
+                # If DataFrame doesn't have timestamp as index, try to find in ts_4h column
+                if 'ts_4h' in df.columns:
+                    df = df.set_index('ts_4h')
+            
+            features = df.loc[ts]
+            
+            # Validate required features
+            required = ["close_4h", "volume_4h", "ts_4h"]
+            missing = []
+            
+            for f in required:
+                if f not in features.index:
+                    missing.append(f)
+                elif pd.isna(features[f]):
+                    missing.append(f)
+            
+            if missing:
+                logger.error(f"Missing or NaN features: {missing}")
+                raise ValueError(f"Missing features: {missing}")
+            
+            return features
+            
+        except KeyError:
+            logger.error(f"No features for timestamp {ts}")
+            return None
+        except Exception as e:
+            logger.error(f"Feature error: {e}")
+            return None

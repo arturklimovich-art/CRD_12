@@ -3,6 +3,7 @@
 Binance Connector для Live Trading
 """
 import os
+import time
 from decimal import Decimal
 from typing import Optional, Dict, List
 from binance.client import Client
@@ -28,17 +29,30 @@ class BinanceConnector:
         self.api_key = api_key
         self.api_secret = api_secret
         self.testnet = testnet
+        self.max_retries = 3
+        self.retry_delay = 1  # seconds
         
-        # Создать клиент
+        # Создать клиент с timeout
         if testnet:
             self.client = Client(
                 api_key=api_key,
                 api_secret=api_secret,
-                testnet=True
+                testnet=True,
+                requests_params={
+                    'timeout': 10,
+                    'verify': True
+                }
             )
             logger.info("✅ Подключено к Binance TESTNET")
         else:
-            self.client = Client(api_key=api_key, api_secret=api_secret)
+            self.client = Client(
+                api_key=api_key,
+                api_secret=api_secret,
+                requests_params={
+                    'timeout': 10,
+                    'verify': True
+                }
+            )
             logger.info("⚠️ Подключено к Binance MAINNET (РЕАЛЬНЫЕ ДЕНЬГИ!)")
     
     def get_account_balance(self, asset: str = 'USDT') -> float:
@@ -115,7 +129,7 @@ class BinanceConnector:
     
     def place_market_order(self, symbol: str, side: str, quantity: float) -> Optional[Dict]:
         """
-        Разместить рыночный ордер
+        Разместить рыночный ордер с retry логикой
         
         Args:
             symbol: Торговая пара (ETHUSDT)
@@ -125,22 +139,36 @@ class BinanceConnector:
         Returns:
             Информация о сделке или None
         """
-        try:
-            order = self.client.create_order(
-                symbol=symbol,
-                side=side,
-                type='MARKET',
-                quantity=quantity
-            )
-            
-            logger.info(f"✅ Ордер размещен: {side} {quantity} {symbol}")
-            logger.info(f"   Order ID: {order['orderId']}")
-            logger.info(f"   Status: {order['status']}")
-            
-            return order
-        except BinanceAPIException as e:
-            logger.error(f"❌ Ошибка размещения ордера: {e}")
-            return None
+        for attempt in range(self.max_retries):
+            try:
+                order = self.client.create_order(
+                    symbol=symbol,
+                    side=side,
+                    type='MARKET',
+                    quantity=quantity
+                )
+                
+                logger.info(f"✅ Ордер размещен: {side} {quantity} {symbol}")
+                logger.info(f"   Order ID: {order['orderId']}")
+                logger.info(f"   Status: {order['status']}")
+                
+                return order
+                
+            except Exception as e:
+                # Check if timeout
+                if 'timeout' in str(e).lower() or 'timed out' in str(e).lower():
+                    if attempt < self.max_retries - 1:
+                        wait_time = self.retry_delay * (attempt + 1)
+                        logger.warning(f"Timeout on attempt {attempt + 1}, retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                    else:
+                        logger.error(f"❌ Max retries exceeded for order placement")
+                        raise
+                else:
+                    logger.error(f"❌ Ошибка размещения ордера: {e}")
+                    raise
+        
+        return None
     
     def place_limit_order(self, symbol: str, side: str, quantity: float, price: float) -> Optional[Dict]:
         """
