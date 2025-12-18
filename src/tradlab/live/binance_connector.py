@@ -167,8 +167,6 @@ class BinanceConnector:
                 else:
                     logger.error(f"❌ Ошибка размещения ордера: {e}")
                     raise
-        
-        return None
     
     def place_limit_order(self, symbol: str, side: str, quantity: float, price: float) -> Optional[Dict]:
         """

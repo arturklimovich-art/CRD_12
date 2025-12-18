@@ -279,7 +279,6 @@ class STR100ChainFlowETH(BaseStrategy):
         Returns:
             ATR value or fallback (2% of current price)
         """
-        import logging
         logger = logging.getLogger(__name__)
         
         if "atr_14_1h" in features and not pd.isna(features["atr_14_1h"]):
@@ -302,7 +301,6 @@ class STR100ChainFlowETH(BaseStrategy):
         Returns:
             Position size (in base currency) respecting exchange constraints
         """
-        import logging
         logger = logging.getLogger(__name__)
         
         # Risk-based sizing
