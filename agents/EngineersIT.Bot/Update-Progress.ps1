@@ -1,6 +1,6 @@
 ﻿# ============================================================================
-# agents/EngineersIT.Bot/Update-Progress.ps1 (SIMPLIFIED)
-# Обновление прогресса задач (упрощённое логирование)
+# agents/EngineersIT.Bot/Update-Progress.ps1 (FIXED FINAL)
+# Обновление прогресса задач (БЕЗ СЛОЖНОГО JSON)
 # ============================================================================
 
 param(
@@ -60,10 +60,14 @@ if ($result -match '\|') {
     Write-Host "   Title: $($resultParts[1].Trim())" -ForegroundColor White
     Write-Host "   Status: $($resultParts[2].Trim())" -ForegroundColor Green
     
-    # Упрощённое логирование (без JSON в meta)
-    $eventSql = "INSERT INTO eng_it.roadmap_events (entity_type, entity_id, event_type, old_value, new_value, changed_by, ts) VALUES ('task', $taskId, 'status_change', '{\"status\":\"$oldStatus\"}', '{\"status\":\"$Status\"}', '$ChangedBy', NOW());"
-    
+    # Упрощённое логирование (без сложного JSON парсинга)
+    # Используем простой формат без экранирования
     try {
+        $eventSql = @"
+INSERT INTO eng_it.roadmap_events (entity_type, entity_id, event_type, old_value, new_value, changed_by, ts) 
+VALUES ('task', $taskId, 'status_change', '{"status":"$oldStatus"}'::jsonb, '{"status":"$Status"}'::jsonb, '$ChangedBy', NOW());
+"@
+        
         docker exec -i $dbHost psql -U $dbUser -d $dbName -c $eventSql 2>&1 | Out-Null
         Write-Host "   Event logged ✓" -ForegroundColor Gray
     } catch {
