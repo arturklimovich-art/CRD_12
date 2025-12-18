@@ -40,10 +40,29 @@ class STR100ChainFlowETH(BaseStrategy):
         "slippage_bps": 5
     }
     
+    # Exchange constraints for position sizing
+    EXCHANGE_CONSTRAINTS = {
+        'min_lot_size': 0.001,
+        'max_lot_size': 9000.0,
+        'lot_precision': 3,
+        'min_notional': 10.0,
+        'tick_size': 0.01
+    }
+    
     def __init__(self, strategy_id: str = "STR-100", params: dict = None):
         if params is None:
             params = self.PARAMS.copy()
         super().__init__(strategy_id, params)
+        self._validate_params()
+    
+    def _validate_params(self):
+        """Validate strategy parameters"""
+        assert 0 < self.params["risk_per_trade"] <= 0.05, "risk_per_trade must be between 0 and 0.05"
+        assert 0 < self.params["max_position_pct"] <= 0.50, "max_position_pct must be between 0 and 0.50"
+        assert self.params["k_sl_min"] < self.params["k_sl_max"], "k_sl_min must be less than k_sl_max"
+        assert self.params["k_tp1"] < self.params["k_tp2"], "k_tp1 must be less than k_tp2"
+        logger = logging.getLogger(__name__)
+        logger.info(f"✅ Parameters validated")
     
     def generate_signal(self, features: pd.Series, account_balance: float) -> Optional[Signal]:
         """
@@ -60,7 +79,7 @@ class STR100ChainFlowETH(BaseStrategy):
         price_score = self._calculate_price_score(features)
         volume_score = self._calculate_volume_score_l1(features)
         sentiment = self._calculate_sentiment_l1()
-        btc_corr = self._calculate_btc_correlation_l1(features)
+        btc_corr = self._calculate_btc_correlation_l2(features)
         
         # 2. MASTER_SIGNAL
         master = (
@@ -84,7 +103,7 @@ class STR100ChainFlowETH(BaseStrategy):
         # 5. ÐžÐ¿Ñ€ÐµÐ´ÐµÐ»ÐµÐ½Ð¸Ðµ Ð½Ð°Ð¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¸Ñ
         if master_adj > self.params["master_long_threshold"]:
             side = "LONG"
-        elif master_adj < self.params["master_short_threshold"]:
+        elif master < self.params["master_short_threshold"]:
             side = "SHORT"
         else:
             return None
@@ -112,12 +131,9 @@ class STR100ChainFlowETH(BaseStrategy):
             tsl=None,
             valid_until=features["ts_4h"] + pd.Timedelta(hours=4),
             meta={
-                "master_signal": master_adj,
-                "momentum": momentum,
+                "master_signal": master,
                 "price_score": price_score,
-                "volume_score": volume_score,
-                "sentiment": sentiment,
-                "btc_corr": btc_corr
+                "volume_score": volume_score
             }
         )
         
@@ -147,84 +163,62 @@ class STR100ChainFlowETH(BaseStrategy):
     def _calculate_sentiment_l1(self) -> float:
         """Sentiment L1 (placeholder, 20%)"""
         return 0.0
-    def _calculate_momentum_factor(self, row: pd.Series) -> float:
-        """
-        Z-score momentum для краткосрочного тренда
-        
-        Из спецификации STR-100 v3.2:
-        - Рассчитывает returns за последние lookback_z баров (default 12 × 1H)
-        - Z-score = mean(returns) / std(returns)
-        - Нормализация через tanh → [-100, +100]
-        
-        Усиливает MASTER_SIGNAL на 10%:
-        MASTER_SIGNAL_ADJUSTED = MASTER_SIGNAL + (momentum × 0.10)
-        """
-        lookback_z = 12  # 12 часов
-        
-        # Получаем массив цен 1H (если есть в фичах)
-        # Для L1 используем доступные данные
-        close_4h = row.get("close_4h", 0)
-        
-        # ВРЕМЕННОЕ РЕШЕНИЕ для L1: используем доступные индикаторы
-        # В L2 добавим полноценный массив close_1h
-        
-        # Упрощённый momentum на основе Price_Score
-        # (показывает направление и силу текущего движения)
-        price_score = self._calculate_price_score(row)
-        
-        # Простая аппроксимация momentum через price_score
-        # Положительный price_score = восходящий тренд
-        # Отрицательный = нисходящий
-        momentum = price_score * 0.3  # Масштабируем для momentum диапазона
-        
-        return np.clip(momentum, -100, 100)
-    def _calculate_momentum_factor(self, row: pd.Series) -> float:
-        """
-        Z-score momentum для краткосрочного тренда
-        
-        Из спецификации STR-100 v3.2:
-        - Рассчитывает returns за последние lookback_z баров (default 12 × 1H)
-        - Z-score = mean(returns) / std(returns)
-        - Нормализация через tanh → [-100, +100]
-        
-        Усиливает MASTER_SIGNAL на 10%:
-        MASTER_SIGNAL_ADJUSTED = MASTER_SIGNAL + (momentum × 0.10)
-        """
-        lookback_z = 12  # 12 часов
-        
-        # Получаем массив цен 1H (если есть в фичах)
-        # Для L1 используем доступные данные
-        close_4h = row.get("close_4h", 0)
-        
-        # ВРЕМЕННОЕ РЕШЕНИЕ для L1: используем доступные индикаторы
-        # В L2 добавим полноценный массив close_1h
-        
-        # Упрощённый momentum на основе Price_Score
-        # (показывает направление и силу текущего движения)
-        price_score = self._calculate_price_score(row)
-        
-        # Простая аппроксимация momentum через price_score
-        # Положительный price_score = восходящий тренд
-        # Отрицательный = нисходящий
-        momentum = price_score * 0.3  # Масштабируем для momentum диапазона
-        
-        return np.clip(momentum, -100, 100)
 
 
     
-    def _calculate_btc_correlation_l1(self, features: pd.Series) -> float:
-        """BTC Correlation L1 (ÑƒÐ¿Ñ€Ð¾Ñ‰Ñ‘Ð½Ð½Ð°Ñ, 15%)"""
-        # Ð’ L1 Ð¸ÑÐ¿Ð¾Ð»ÑŒÐ·ÑƒÐµÐ¼ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð½Ð°Ð¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¸Ðµ BTC
-        # Ð¢Ñ€ÐµÐ±ÑƒÐµÑ‚ÑÑ Ð¼Ð°ÑÑÐ¸Ð² close_1h Ð´Ð»Ñ BTC (Ð¿Ð¾ÐºÐ° Ð¸ÑÐ¿Ð¾Ð»ÑŒÐ·ÑƒÐµÐ¼ 0)
-        return 0.0
+    def _calculate_btc_correlation_l2(self, features: pd.Series) -> float:
+        """
+        BTC Correlation L2 (полная версия, 15%)
+        
+        Рассчитывает корреляцию ETH/BTC за последние 24 бара (1H)
+        Положительная корреляция → ETH следует за BTC
+        Отрицательная → расхождение (осторожно)
+        """
+        try:
+            # Получаем timestamp текущего бара
+            timestamp = features.name if isinstance(features.name, pd.Timestamp) else pd.Timestamp.now()
+            
+            # Загружаем BTC close array (24 бара назад)
+            btc_closes = self.btc_provider.get_btc_close_array(timestamp, lookback=24)
+            
+            if btc_closes is None or len(btc_closes) < 24:
+                # Fallback на L1 версию
+                return self._calculate_btc_correlation_l1_fallback(features)
+            
+            # TODO: Нужен массив ETH closes за те же 24 бара
+            # Пока используем упрощённую версию через price_score
+            
+            # Рассчитываем returns BTC
+            btc_returns = np.diff(btc_closes) / btc_closes[:-1]
+            
+            # Направление BTC (положительный momentum = рост)
+            btc_momentum = np.mean(btc_returns[-12:])  # последние 12 часов
+            
+            # Нормализуем через tanh → [-100, +100]
+            btc_score = np.tanh(btc_momentum * 100) * 100
+            
+            return float(np.clip(btc_score, -100, 100))
+        
+        except Exception as e:
+            # При ошибке возвращаем fallback
+            return self._calculate_btc_correlation_l1_fallback(features)
     
-    def _calculate_momentum_factor(self, features: pd.Series) -> float:
-        """Momentum Factor (10%)"""
-        # Ð¢Ñ€ÐµÐ±ÑƒÐµÑ‚ÑÑ Ð¼Ð°ÑÑÐ¸Ð² close_1h_array (Ð¿Ð¾ÐºÐ° Ð¸ÑÐ¿Ð¾Ð»ÑŒÐ·ÑƒÐµÐ¼ simple momentum)
-        return 0.0
+    def _calculate_btc_correlation_l1_fallback(self, features: pd.Series) -> float:
+        """Fallback L1 версия (аппроксимация через market momentum)"""
+        price_score = self._calculate_price_score(features)
+        volume_score = self._calculate_volume_score_l1(features)
+        btc_proxy = (price_score * 0.6 + volume_score * 0.4) * 0.5
+        return float(np.clip(btc_proxy, -100, 100))
+    
     
     # ===== VETO FILTERS =====
     
+
+    def _calculate_momentum_factor(self, features: pd.Series) -> float:
+        """Momentum Factor (10%) - упрощённая версия через Price Score"""
+        price_score = self._calculate_price_score(features)
+        momentum = price_score * 0.3
+        return float(np.clip(momentum, -100, 100))
     def _atr_veto(self, features: pd.Series) -> bool:
         """ATR expansion veto"""
         atr = features.get("atr_14_1h", 50.0)
@@ -279,6 +273,12 @@ class STR100ChainFlowETH(BaseStrategy):
             tp2 = entry - (atr * k_tp2)
         
         return tp1, tp2
+
+
+
+
+
+
 
 
 

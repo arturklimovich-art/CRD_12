@@ -60,11 +60,22 @@ class LiveTradingBot:
             'slippage_bps': int(os.getenv('SLIPPAGE_BPS', 5))
         }
         
+        # Store sensitive config separately
+        self.config = {
+            'API_KEY': os.getenv('API_KEY'),
+            'API_SECRET': os.getenv('API_SECRET'),
+            'TESTNET': os.getenv('TESTNET', 'true').lower() == 'true',
+            'DB_PASSWORD': 'crd12'
+        }
+        
+        # Sanitize config for logging
+        self._sanitize_logs()
+        
         # Создать подключение к бирже
         self.exchange = BinanceConnector(
-            api_key=os.getenv('API_KEY'),
-            api_secret=os.getenv('API_SECRET'),
-            testnet=os.getenv('TESTNET', 'true').lower() == 'true'
+            api_key=self.config['API_KEY'],
+            api_secret=self.config['API_SECRET'],
+            testnet=self.config['TESTNET']
         )
         
         # Создать стратегию
@@ -84,6 +95,7 @@ class LiveTradingBot:
         
         # Текущая позиция
         self.current_position = None
+        self.running = True
         
         logger.info("=" * 70)
         logger.info("LIVE TRADING BOT ИНИЦИАЛИЗИРОВАН")
@@ -91,12 +103,22 @@ class LiveTradingBot:
         logger.info(f"Символ: {self.symbol}")
         logger.info(f"Таймфрейм: {self.timeframe}")
         logger.info(f"Начальный капитал: ${self.initial_capital:,.2f}")
+        logger.info(f"Config loaded: {self.safe_config}")
         logger.info(f"Параметры стратегии:")
         logger.info(f"  Long Threshold: {self.strategy_params['master_long_threshold']}")
         logger.info(f"  Short Threshold: {self.strategy_params['master_short_threshold']}")
         logger.info(f"  Lookback Z: {self.strategy_params['lookback_z']}")
         logger.info(f"  SL Min: {self.strategy_params['k_sl_min']}")
         logger.info("=" * 70)
+    
+    def _sanitize_logs(self):
+        """Remove sensitive data from logs"""
+        sensitive_keys = ['API_KEY', 'API_SECRET', 'DB_PASSWORD', 'password']
+        self.safe_config = {k: v for k, v in self.config.items() 
+                           if k not in sensitive_keys}
+        for key in sensitive_keys:
+            if key in self.config:
+                self.safe_config[key] = '***REDACTED***'
     
     def get_latest_features(self) -> Optional[pd.Series]:
         """
@@ -159,12 +181,17 @@ class LiveTradingBot:
     
     def execute_trade(self, signal: dict):
         """
-        Исполнить трейд на бирже
+        Исполнить трейд на бирже с полной обработкой ошибок
         
         Args:
             signal: Сигнал от стратегии
         """
         try:
+            # Pre-validation
+            if not self._validate_signal(signal):
+                logger.warning("❌ Signal validation failed")
+                return None
+            
             side = 'BUY' if signal.side == 'LONG' else 'SELL'
             quantity = round(signal.position_size, 3)  # Binance требует округление
             
@@ -187,10 +214,96 @@ class LiveTradingBot:
                     'timestamp': datetime.now()
                 }
                 
-                logger.info(f"✅ Позиция открыта: {signal.side} {quantity} {self.symbol}")
+                logger.info(f"✅ Order executed: {order['orderId']}")
+                logger.info(f"   Позиция открыта: {signal.side} {quantity} {self.symbol}")
+                return order
         
         except Exception as e:
-            logger.error(f"❌ Ошибка исполнения трейда: {e}")
+            # Check if it's a Binance API exception
+            if hasattr(e, 'code') and hasattr(e, 'message'):
+                logger.error(f"❌ API error: {getattr(e, 'status_code', 'N/A')} - {e.message}")
+                
+                if hasattr(e, 'code'):
+                    if e.code == -1021:  # Timestamp error
+                        logger.warning("⚠️ Timestamp sync issue, retrying once...")
+                        self._sync_time()
+                        # Retry once
+                        try:
+                            return self.execute_trade(signal)
+                        except:
+                            logger.error("❌ Retry failed")
+                            return None
+                    
+                    elif e.code in [-2010, -1013]:  # Balance/quantity issues
+                        logger.critical(f"Order rejected: {e.message}")
+                        self._send_alert(f"ORDER_REJECTED: {e.message}")
+                    
+                    else:
+                        logger.critical(f"Unhandled API error code: {e.code}")
+                        self._emergency_shutdown()
+            else:
+                # Network or other errors
+                logger.error(f"❌ Error executing trade: {e}", exc_info=True)
+                
+                # Check if it's a network-related error
+                if 'network' in str(e).lower() or 'timeout' in str(e).lower():
+                    logger.warning("Network error detected, consider retry logic")
+                else:
+                    logger.critical(f"Unexpected error: {e}")
+                    self._emergency_shutdown()
+            
+            return None
+    
+    def _validate_signal(self, signal) -> bool:
+        """Validate signal before execution"""
+        if not signal:
+            return False
+        
+        required_attrs = ['side', 'position_size', 'entry_price', 'stop_loss', 'take_profit_1', 'take_profit_2']
+        for attr in required_attrs:
+            if not hasattr(signal, attr):
+                logger.error(f"Signal missing required attribute: {attr}")
+                return False
+        
+        if signal.position_size <= 0:
+            logger.error(f"Invalid position size: {signal.position_size}")
+            return False
+        
+        return True
+    
+    def _sync_time(self):
+        """Sync time with Binance server (placeholder for timestamp sync)"""
+        logger.info("Syncing time with Binance server...")
+        # In production, implement actual time sync
+        import time
+        time.sleep(0.1)
+    
+    def _send_alert(self, message: str):
+        """Send alert (placeholder for alert system)"""
+        logger.warning(f"🚨 ALERT: {message}")
+        # In production, send to Telegram/Email/etc
+    
+    def _emergency_shutdown(self):
+        """Emergency shutdown procedure"""
+        logger.critical("🚨 EMERGENCY SHUTDOWN")
+        
+        # Close all positions if configured
+        emergency_close = os.getenv('EMERGENCY_CLOSE_POSITIONS', 'true').lower() == 'true'
+        if emergency_close and self.current_position:
+            logger.warning("Attempting to close all positions...")
+            try:
+                self._close_all_positions()
+            except Exception as e:
+                logger.error(f"Failed to close positions: {e}")
+        
+        self._send_alert("EMERGENCY_SHUTDOWN")
+        self.running = False
+        sys.exit(1)
+    
+    def _close_all_positions(self):
+        """Close all open positions"""
+        if self.current_position:
+            self.close_position("EMERGENCY", partial=1.0)
     
     def check_position_management(self):
         """
