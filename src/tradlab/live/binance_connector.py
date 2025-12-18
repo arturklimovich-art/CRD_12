@@ -71,7 +71,7 @@ class BinanceConnector:
                 if balance['asset'] == asset:
                     return float(balance['free'])
             return 0.0
-        except BinanceAPIException as e:
+        except Exception as e:
             logger.error(f"❌ Ошибка получения баланса: {e}")
             return 0.0
     
@@ -88,7 +88,7 @@ class BinanceConnector:
         try:
             ticker = self.client.get_symbol_ticker(symbol=symbol)
             return float(ticker['price'])
-        except BinanceAPIException as e:
+        except Exception as e:
             logger.error(f"❌ Ошибка получения цены: {e}")
             return None
     

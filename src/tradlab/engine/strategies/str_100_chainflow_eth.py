@@ -307,6 +307,12 @@ class STR100ChainFlowETH(BaseStrategy):
         
         # Risk-based sizing
         distance_to_sl = abs(entry - sl) / entry
+        
+        # Handle edge case: SL equals entry (no risk)
+        if distance_to_sl == 0:
+            logger.warning("Stop loss equals entry price, returning 0 size")
+            return 0.0
+        
         max_loss = balance * self.params["risk_per_trade"]
         
         size = max_loss / (entry * distance_to_sl)
