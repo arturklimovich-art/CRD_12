@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 TradLab Backtest Runner
 
@@ -63,10 +63,10 @@ def display_results(results: dict):
     print("BACKTEST RESULTS")
     print("=" * 60)
 
-    print(f"\n📊 Strategy: {results['strategy_id']}")
-    print(f"📅 Period: {results['start_ts']} to {results['end_ts']}")
-    print(f"💰 Initial Capital: ${results['initial_capital']:,.2f}")
-    print(f"💵 Final Capital: ${results['final_capital']:,.2f}")
+    print(f"\nðŸ“Š Strategy: {results['strategy_id']}")
+    print(f"ðŸ“… Period: {results['start_ts']} to {results['end_ts']}")
+    print(f"ðŸ’° Initial Capital: ${results['initial_capital']:,.2f}")
+    print(f"ðŸ’µ Final Capital: ${results['final_capital']:,.2f}")
 
     print("\n" + "-" * 40)
     print("PERFORMANCE METRICS")
@@ -74,43 +74,64 @@ def display_results(results: dict):
 
     pnl = results["pnl_total"]
     pnl_pct = (pnl / results["initial_capital"]) * 100
-    print(f"📈 Total PnL: ${pnl:,.2f} ({pnl_pct:+.2f}%)")
-    print(f"📊 Sharpe Ratio: {results['sharpe']:.2f}")
-    print(f"📊 Sortino Ratio: {results['sortino']:.2f}")
-    print(f"📉 Max Drawdown: {results['max_dd']:.2f}%")
-    print(f"📊 Calmar Ratio: {results['calmar']:.2f}")
+    print(f"ðŸ“ˆ Total PnL: ${pnl:,.2f} ({pnl_pct:+.2f}%)")
+    print(f"ðŸ“Š Sharpe Ratio: {results['sharpe']:.2f}")
+    print(f"ðŸ“Š Sortino Ratio: {results['sortino']:.2f}")
+    print(f"ðŸ“‰ Max Drawdown: {results['max_dd']:.2f}%")
+    print(f"ðŸ“Š Calmar Ratio: {results['calmar']:.2f}")
 
     print("\n" + "-" * 40)
     print("TRADE STATISTICS")
     print("-" * 40)
 
-    print(f"🔢 Total Trades: {results['total_trades']}")
-    print(f"🎯 Win Rate: {results['win_rate']:.2f}%")
-    print(f"⚖️  Profit Factor: {results['profit_factor']:.2f}")
+    print(f"ðŸ”¢ Total Trades: {results['total_trades']}")
+    print(f"ðŸŽ¯ Win Rate: {results['win_rate']:.2f}%")
+    print(f"âš–ï¸  Profit Factor: {results['profit_factor']:.2f}")
+
+    # Average hold time
+    avg_hold = results.get("avg_hold_time_hours", 0)
+    if avg_hold > 0:
+        if avg_hold < 1:
+            print(f"⏱️  Avg Hold Time: {avg_hold * 60:.0f} minutes")
+        elif avg_hold < 24:
+            print(f"⏱️  Avg Hold Time: {avg_hold:.1f} hours")
+        else:
+            print(f"⏱️  Avg Hold Time: {avg_hold / 24:.1f} days")
+    
+    # Calculate average hold time
+    hold_times = []
+    for trade_id in results.get("trades", []):
+        # Get trade from database
+        pass  # TODO: implement
+    
+    # Temporary: calculate from results if available
+    avg_hold_hours = results.get("avg_hold_time_hours", 0)
+    if avg_hold_hours > 0:
+        print(f"⏱️  Avg Hold Time: {avg_hold_hours:.1f}h")
 
     print("\n" + "-" * 40)
     print("RISK GATE STATUS")
     print("-" * 40)
 
     if results["pass_risk_gate"]:
-        print("✅ PASS - Strategy meets risk criteria")
-        print("   • Sharpe >= 1.0: ✅")
-        print("   • MaxDD <= 20%: ✅")
-        print("   • Win Rate >= 40%: ✅")
+        print("âœ… PASS - Strategy meets risk criteria")
+        print("   â€¢ Sharpe >= 1.0: âœ…")
+        print("   â€¢ MaxDD <= 20%: âœ…")
+        print("   â€¢ Win Rate >= 40%: âœ…")
     else:
-        print("❌ FAIL - Strategy does not meet risk criteria")
+        print("âŒ FAIL - Strategy does not meet risk criteria")
         if results["sharpe"] < 1.0:
-            print(f"   • Sharpe >= 1.0: ❌ (got {results['sharpe']:.2f})")
+            print(f"   â€¢ Sharpe >= 1.0: âŒ (got {results['sharpe']:.2f})")
         else:
-            print("   • Sharpe >= 1.0: ✅")
+            print("   â€¢ Sharpe >= 1.0: âœ…")
         if results["max_dd"] > 20.0:
-            print(f"   • MaxDD <= 20%: ❌ (got {results['max_dd']:.2f}%)")
+            print(f"   â€¢ MaxDD <= 20%: âŒ (got {results['max_dd']:.2f}%)")
         else:
-            print("   • MaxDD <= 20%: ✅")
+            print("   â€¢ MaxDD <= 20%: âœ…")
         if results["win_rate"] < 40.0:
-            print(f"   • Win Rate >= 40%: ❌ (got {results['win_rate']:.2f}%)")
+            print(f"   â€¢ Win Rate >= 40%: âŒ (got {results['win_rate']:.2f}%)")
         else:
-            print("   • Win Rate >= 40%: ✅")
+            print("   â€¢ Win Rate >= 40%: âœ…")
 
     print("\n" + "=" * 60)
     print(f"Run ID: {results['run_id']}")
@@ -127,7 +148,7 @@ def main():
 
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        print("❌ ERROR: DATABASE_URL not found in environment")
+        print("âŒ ERROR: DATABASE_URL not found in environment")
         print("   Please set DATABASE_URL in .env.tradlab file")
         sys.exit(1)
 
@@ -175,7 +196,7 @@ def main():
         display_results(results)
 
     except Exception as e:
-        print(f"\n❌ ERROR: {e}")
+        print(f"\nâŒ ERROR: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
@@ -183,3 +204,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+

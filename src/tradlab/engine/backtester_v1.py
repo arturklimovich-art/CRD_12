@@ -1,4 +1,4 @@
-"""
+﻿"""
 Backtester v1 для TradLab
 
 Модуль для прогона торговых стратегий на исторических данных
@@ -100,7 +100,7 @@ class BacktesterV1:
             run_id = f"{self.strategy.strategy_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
         
         # 1. Загрузка фич из БД
-        print(f"[BacktesterV1] Загрузка фич для {symbol}...")
+        print(f"[BacktesterV1] Загрузка данных...")
         features_df = self.feature_adapter.fetch_features(
             symbol=symbol,
             start_date=start_date,
@@ -110,13 +110,13 @@ class BacktesterV1:
         if features_df.empty:
             raise ValueError(f"Нет данных для {symbol} в указанном периоде")
         
-        print(f"[BacktesterV1] Загружено {len(features_df)} баров")
+        print(f"[BacktesterV1] Загружено {len(features_df)} баров.")
         
         # Подготовка фич
         features_df = self.feature_adapter.prepare_features_for_strategy(features_df)
         
         # 2. Прогон стратегии на каждом баре
-        print(f"[BacktesterV1] Запуск стратегии {self.strategy.strategy_id}...")
+        print(f"[BacktesterV1] Запуск прогона стратегии...")
         
         for idx, row in features_df.iterrows():
             # Обновление открытой позиции (проверка на SL/TP)
@@ -147,11 +147,13 @@ class BacktesterV1:
         results['pass_risk_gate'] = self._check_risk_gate(results)
         
         # 5. Сохранение в БД
-        print(f"[BacktesterV1] Сохранение результатов в БД...")
-        self._save_trades_to_db(run_id)
+        
+        # Сохранение трейдов и результатов
+        self._save_trades_to_db(run_id)                                                                                         
+        
         self._save_results_to_db(results)
         
-        print(f"[BacktesterV1] Бэктест завершён. Run ID: {run_id}")
+        print(f"[BacktesterV1] Прогон завершен.")
         print(f"  Total PnL: {results['pnl_total']:.2f} USDT")
         print(f"  Sharpe: {results['sharpe']:.2f}")
         print(f"  Max DD: {results['max_dd']:.2f}%")
@@ -201,17 +203,17 @@ class BacktesterV1:
         exit_reason = None
         
         if position["side"] == "LONG":
-            if current_price <= position["sl"]:
+            if position["sl"] is not None and current_price <= position["sl"]:
                 should_close = True
                 exit_reason = "SL"
-            elif current_price >= position["tp1"]:
+            elif position["tp1"] is not None and current_price >= position["tp1"]:
                 should_close = True
                 exit_reason = "TP1"
         else:  # SHORT
-            if current_price >= position["sl"]:
+            if position["sl"] is not None and current_price >= position["sl"]:
                 should_close = True
                 exit_reason = "SL"
-            elif current_price <= position["tp1"]:
+            elif position["tp1"] is not None and current_price <= position["tp1"]:
                 should_close = True
                 exit_reason = "TP1"
         
@@ -254,20 +256,20 @@ class BacktesterV1:
         trade = {
             "strategy_id": self.strategy.strategy_id,
             "mode": "backtest",
-            "symbol": current_bar.get("symbol", "ETHUSDT"),
-            "side": position["side"],
-            "qty": position["qty"],
+            "symbol": str(current_bar.get("symbol", "ETHUSDT")),
+            "side": str(position["side"]),
+            "qty": float(position["qty"]),
             "entry_ts": position["entry_ts"],
-            "entry_price": position["entry_price"],
+            "entry_price": float(position["entry_price"]),
             "exit_ts": current_bar["ts_4h"],
-            "exit_price": exit_price,
-            "pnl": pnl,
-            "pnl_pct": pnl_pct,
+            "exit_price": float(exit_price),
+            "pnl": float(pnl),
+            "pnl_pct": float(pnl_pct),
             "meta": {
                 **position.get("meta", {}),
                 "exit_reason": exit_reason,
-                "commission_entry": position["commission_entry"],
-                "commission_exit": commission_exit
+                "commission_entry": float(position["commission_entry"]),
+                "commission_exit": float(commission_exit)
             }
         }
         
@@ -315,6 +317,18 @@ class BacktesterV1:
         win_rate = MetricsCalculator.calculate_win_rate(self.trades)
         profit_factor = MetricsCalculator.calculate_profit_factor(self.trades)
         
+        # Calculate average hold time
+        hold_times = []
+        for trade in self.trades:
+            if trade.get("exit_ts") and trade.get("entry_ts"):
+                # Убедимся, что exit_ts и entry_ts - datetime объекты
+                if isinstance(trade["exit_ts"], datetime) and isinstance(trade["entry_ts"], datetime):
+                    duration = (trade["exit_ts"] - trade["entry_ts"]).total_seconds() / 3600.0
+                    hold_times.append(duration)
+        
+        avg_hold_time_hours = sum(hold_times) / len(hold_times) if hold_times else 0.0
+        print(f"DEBUG: Trades={len(self.trades)}, Hold_times={len(hold_times)}, Avg={avg_hold_time_hours:.2f}h")
+        
         results = {
             "run_id": run_id,
             "strategy_id": self.strategy.strategy_id,
@@ -328,6 +342,7 @@ class BacktesterV1:
             "win_rate": win_rate,
             "profit_factor": profit_factor,
             "total_trades": len(self.trades),
+            "avg_hold_time_hours": avg_hold_time_hours,
             "initial_capital": self.initial_capital,
             "final_capital": self.balance
         }
@@ -360,6 +375,10 @@ class BacktesterV1:
         
         try:
             for trade in self.trades:
+                # Добавляем run_id в meta для удобства и на случай отсутствия в trade
+                trade_meta = trade.get("meta", {})
+                trade_meta["run_id"] = run_id
+
                 cursor.execute("""
                     INSERT INTO lab.trades (
                         run_id, strategy_id, mode, symbol, side, qty,
@@ -380,11 +399,11 @@ class BacktesterV1:
                     trade["exit_price"],
                     trade["pnl"],
                     trade["pnl_pct"],
-                    psycopg2.extras.Json(trade.get("meta", {}))
+                    psycopg2.extras.Json(trade_meta)
                 ))
             
             conn.commit()
-            print(f"[BacktesterV1] Сохранено {len(self.trades)} трейдов")
+            print(f"[BacktesterV1] Сохранено {len(self.trades)} трейдов.")
         
         except Exception as e:
             conn.rollback()
@@ -401,6 +420,14 @@ class BacktesterV1:
         cursor = conn.cursor()
         
         try:
+            # Добавляем все доп. метрики в meta
+            meta_data = {
+                "initial_capital": float(results.get("initial_capital", 0)),
+                "final_capital": float(results.get("final_capital", 0)),
+                "total_trades": int(results.get("total_trades", 0)),
+                "avg_hold_time_hours": float(results.get("avg_hold_time_hours", 0)) 
+            }
+
             cursor.execute("""
                 INSERT INTO lab.results (
                     run_id, strategy_id, start_ts, end_ts, pnl_total,
@@ -427,19 +454,15 @@ class BacktesterV1:
                 results["strategy_id"],
                 results["start_ts"],
                 results["end_ts"],
-                results["pnl_total"],
-                results["sharpe"],
-                results["sortino"],
-                results["max_dd"],
-                results["calmar"],
-                results["win_rate"],
-                results["profit_factor"],
-                results["pass_risk_gate"],
-                psycopg2.extras.Json({
-                    "initial_capital": results.get("initial_capital"),
-                    "final_capital": results.get("final_capital"),
-                    "total_trades": results.get("total_trades")
-                })
+                float(results["pnl_total"]),
+                float(results["sharpe"]),
+                float(results["sortino"]),
+                float(results["max_dd"]),
+                float(results["calmar"]),
+                float(results["win_rate"]),
+                float(results["profit_factor"]),
+                bool(results["pass_risk_gate"]),
+                psycopg2.extras.Json(meta_data)
             ))
             
             conn.commit()
